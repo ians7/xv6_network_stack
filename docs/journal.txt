@@ -1,0 +1,17 @@
+===== 5/29/2025 11:27 AM =====
+
+I've been toying with the idea of writing a network stack for xv6 for a few
+days now, and I think that's it's something I really want to take on.
+Unfortunately, my final is in about an hour and a half and I'm currently
+wasting time that could be spent studying, but I was thinking that journaling
+my experience with this project could prove to be very beneficial. I tend to 
+get through projects and think "Man, in the end, that was really simple. I 
+think that once I got past any of the troubles I had, it was really easy!"
+Then I struggle to think about any of the challenges that I faced in during
+the project, which isn't good for getting a job! So, I want to journal my
+experiences, struggles, successes, things that work, things that don't work,
+and so on. Hopefully, this will also lead me to be more invested in the project
+so that it's more likely to be successful.
+
+lol
+
