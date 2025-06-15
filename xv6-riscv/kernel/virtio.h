@@ -6,6 +6,7 @@
 // the virtio spec:
 // https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.pdf
 //
+#include "types.h"
 
 // virtio mmio control registers, mapped starting at 0x10001000.
 // from qemu virtio_mmio.h
@@ -44,6 +45,29 @@
 #define VIRTIO_F_ANY_LAYOUT         27
 #define VIRTIO_RING_F_INDIRECT_DESC 28
 #define VIRTIO_RING_F_EVENT_IDX     29
+
+// virtio-net feature bits
+#define VIRTIO_NET_F_CSUM 0
+#define VIRTIO_NET_F_GUEST_CSUM (1 << 1)
+#define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS (1 << 2)
+#define VIRTIO_NET_F_MTU (1 << 3)
+#define VIRTIO_NET_F_MAC (1 << 5)
+#define VIRTIO_NET_F_GUEST_TSO4 (1 << 7)
+#define VIRTIO_NET_F_GUEST_TSO6 (1 << 8)
+#define VIRTIO_NET_F_GUEST_ECN (1 << 9)
+#define VIRTIO_NET_F_GUEST_UFO (1 << 10)
+#define VIRTIO_NET_F_HOST_TSO4 (1 << 11)
+#define VIRTIO_NET_F_HOST_TSO6 (1 << 12)
+#define VIRTIO_NET_F_HOST_ECN (1 << 13)
+#define VIRTIO_NET_F_HOST_UFO (1 << 14)
+#define VIRTIO_NET_F_MRG_RXBUF (1 << 15)
+#define VIRTIO_NET_F_STATUS (1 << 16)
+#define VIRTIO_NET_F_CTRL_VQ (1 << 17)
+#define VIRTIO_NET_F_CTRL_RX (1 << 18)
+#define VIRTIO_NET_F_CTRL_VLAN (1 << 19)
+#define VIRTIO_NET_F_GUEST_ANNOUNCE (1 << 21)
+#define VIRTIO_NET_F_MQ (1 << 22)
+#define VIRTIO_NET_F_CTRL_MAC_ADDR (1 << 23)
 
 // this many virtio descriptors.
 // must be a power of two.
@@ -94,3 +118,7 @@ struct virtio_blk_req {
   uint32 reserved;
   uint64 sector;
 };
+
+// virtio_net API
+void transmit_packet(void *pkt_data, uint16 pkt_len);
+uint16 receive_packet(void *pkt_buf, uint16 num_bytes);

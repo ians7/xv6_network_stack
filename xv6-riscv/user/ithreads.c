@@ -1,16 +1,14 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
-#include "syscall.h"
+#include "kernel/syscall.h"
 #include "user/ithreads.h"
 
 #define INIT_MAX_STACKS 8
 
-extern int create_thread();
 extern void free(void *);
 extern void* malloc(uint);
 extern void* memmove(void*, const void*, int);
-extern int thread_exit(uint64);
 
 int threads_done = 0;
 int num_threads = 0;

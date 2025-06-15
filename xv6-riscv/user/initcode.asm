@@ -30,12 +30,12 @@ exit:
         ecall
   1c:	00000073          	ecall
         jal exit
-  20:	ff9ff0ef          	jal	ra,18 <exit>
+  20:	ff9ff0ef          	jal	18 <exit>
 
 0000000000000024 <init>:
   24:	696e692f          	.word	0x696e692f
-  28:	           	Address 0x0000000000000028 is out of bounds.
+  28:	0074                	.short	0x0074
+	...
 
-
-000000000000002b <argv>:
+000000000000002c <argv>:
 	...

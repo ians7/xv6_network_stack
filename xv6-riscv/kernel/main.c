@@ -6,6 +6,34 @@
 
 volatile static int started = 0;
 
+void transmit_pkt_test1() {
+  char *pkt1_str = "Hello, world!";
+  uint16 pkt1_len = strlen(pkt1_str);
+  transmit_packet(pkt1_str, pkt1_len);
+  printf("finished transmit_packet test 1\n");
+}
+
+void transmit_pkt_test2() {
+  char *pkt1_str = "Hello, world!";
+  uint16 pkt1_len = strlen(pkt1_str);
+  char *pkt2_str = "Goodbye, world!";
+  uint16 pkt2_len = strlen(pkt2_str);
+  transmit_packet(pkt1_str, pkt1_len);
+  transmit_packet(pkt2_str, pkt2_len);
+  printf("finished transmit_packet test 2\n");
+}
+
+// void receive_pkt_test1() {
+//   char *pkt_str = "Hi honey!";
+//   uint16 pkt_len = strlen(pkt_str);
+//   transmit_packet(pkt_str, pkt_len);
+//   
+//   char buf[128];
+//   uint16 len = receive_packet(buf, 127);
+//   buf[len] = '\0';
+//   printf("received: %s", buf);
+// }
+
 // start() jumps here in supervisor mode on all CPUs.
 void
 main()
@@ -28,6 +56,9 @@ main()
     iinit();         // inode table
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
+    virtio_net_init(); // emulated NIC driver 
+    transmit_pkt_test1();
+    // transmit_pkt_test2();
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
@@ -43,3 +74,4 @@ main()
 
   scheduler();        
 }
+
