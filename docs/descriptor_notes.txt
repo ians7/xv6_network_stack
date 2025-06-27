@@ -1,0 +1,15 @@
+What are Network Descriptors?
+ - small data structures that describe the status, location, and size of a 
+	  network packet buffer
+
+ - TX (Transmit)
+ 		 * Tell the NIC where outgoing packets are stored in memory
+
+ - RX (Receive)
+ 		 * Tell the NIC where to store incoming packets
+
+What is a ring buffer?
+ - Similar to a circular linked list, but it doesn't have any nodes. Only
+   references to a head and a tail to act as one continuous section of
+	 memory
+

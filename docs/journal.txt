@@ -1,4 +1,4 @@
-===== 5/29/2025 11:27 AM =====
+===== 05/29/2025 =====
 
 I've been toying with the idea of writing a network stack for xv6 for a few
 days now, and I think that's it's something I really want to take on.
@@ -15,3 +15,75 @@ so that it's more likely to be successful.
 
 lol
 
+===== 06/03/2025 =====
+I've been working on the driver for the virtio-net device for a couple of hours
+by now and I think that it might be starting to make a little sense? The docs
+have been pretty helpful. 
+
+Reading the block device driver has also been immensely helpful. Having it as a
+reference to understand how to actually do everything in code has been
+critical, otherwise I would have been having a hard time figuring out how to 
+even negotiate the feature bits.
+
+Struggling to access the memory location of the device. I keep getting a
+segfault, but I've verified that the device should be located at that
+location in memory. Maybe the device isn't even being set up properly?
+
+==== 06/03/2025 ====
+Working on it a little while longer, I figured out that I needed to dump
+the qemu logs to find that qemu was failing to access 0x1002000. This, 
+along with some other info, indicated that the memory was not actually
+being mapped to the device. Turns out I had to call `kvmmap` for the
+location in memory in vm.c. This makes a lot of sense and I'm kind of
+ashamed that I failed to realize this. Doing this fixed my segfault on launch
+
+Worked on this for awhile today, got some decent progress. Need to read a
+little bit more about descriptors and how I need to use them. Might have
+to draw some things out to really figure out what is happening. 
+
+==== 06/06/2025 ====
+Not really sure how to feel about today. I did some reading that (so far) has
+been generally unhelpful. I feel like I'm using ChatGPT too much, so I'm trying
+to read the documentation a little more, which has been going well enough. It's
+just hard when I know little to nothing about drivers and the documentation for
+this particular device is only so helpful in regards to that. 
+
+I at least got wireshark set up so that it can sniff the packets that I'm
+attempting to transmit, so that's a plus. Unfortunately it can't see any of the
+packets that I want to send lol
+
+==== 06/08/2025 ====
+After some beating my head into it, I was at a loss for what could have been
+going wrong. I was reading through the spec again for the virtio net device
+trying to see what I was doing incorrectly. I saw the note (which I've seen
+and taken note of several times already) that the MAC feature SHOULD be
+negotiated if offered, so I verified with ChatGPT that I was negotiating it
+correctly and it turns out that I **wasn't**. I was using the |= operator
+instead of the &= operator. This was problematic because I wasn't checking
+that the device even offers it, I was just adding it. This messed up how the
+device processes my buffers, resulting in failure. After changing this, I
+FINALLY got an error that told me the my receive buffers weren't properly
+initialized, which appears to be an indication that it's finally processing
+my descriptors! Bless up.
+
+Found another bug in the initialization that I identified by reading the
+documentation. In section 2.6.5, it says that the header of a receive buffer
+must be set to read-only, but I was setting the write-only bit for it.
+
+Absolutely massive bug: QUEUE_RX needs to be 0 and QUEUE_TX needs to be 1, as
+per the virtio spec. I did not know this before and I had them swapped. I no
+longer get any errors. I'm still not seeing my packets in wireshark, but this
+is fine. This feels like a big W
+
+==== 06/14/2025 ====
+I forgot to document anything else that I figured out the last few times I've
+been working, but I've made significant progress. I figured out that my packets
+were not being seen in wireshark because I was setting the hdr_len value. This
+value should always be zero unless I'm negotiating packet fragmentation, which
+I am not. So, now I am able to see my packets on wireshark
+
+I encountered another issue where I thought that the device was appending 00 00
+to the beginning of my packet, but it turns out that this was due to me having
+a field in struct virtio_net_hdr that I did not need. Thus, some of the data 
+from the header was leaking into my actual packet data. Removing this field 
+fixed the issue.

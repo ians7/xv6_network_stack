@@ -1,0 +1,37 @@
+==== Implementation Plan ====
+
+I need to first write a driver to interface with the virtio-net device. The
+virtio documentation contains a lot of important information for writing
+the driver.	
+
+Initialization routine:
+
+1. identify and initialize the receive and transmission virtqueues, up to N of
+each. if VIRTIO_NET_F_MQ feature bit is negotiated, N=max_virtqueue_pairs, 
+otherwise N=1.
+
+2. if VIRTIO_NET_F_CTRL_VQ is negotiated, identify the control virtqueue (how?)
+
+3. Fill receive queues with buffers: see 5.1.6.3
+
+4. I'm not sure what this is saying
+
+5. If MAC feature bit is set, the `mac` entry indidcates the "physical" address
+of the network card
+
+6. If VIRTIO_NET_F_STATUS is negotiated, the link status comes from the bottom
+bit of `status`. Otherwise, driver assumes it's active
+
+7. Driver should negotiate the VIRTIO_NET_F_CSUM featue bit. If done, the
+driver can use TCP or UDP segmentation offload bt negotiating the 
+VIRTIO_NET_F_HOST_TSO4, VIRTIO_NET_F_HOST_TSO6, and VIRTIO_NET_F_HOST_UFO
+feature bits
+
+Packet Transmission:
+
+1. I don't want to do any checksumming, at least right now. Then, flags should
+ 		be zero and gso_type should be VIRTIO_NET_HDR_GSO_NONE.
+
+2. num_buffers is ALWAYS set to zero for transmitted packets
+
+3. Header and packet are added to TXQ and device is notified of the entry

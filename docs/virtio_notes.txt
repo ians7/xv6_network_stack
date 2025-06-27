@@ -1,0 +1,56 @@
+What is a virtio network device?
+ - I think that it's basically a virtualized network card, kind of like a
+   virtual machine but for a network card
+
+Basic Facilities of a Virtio device:
+ 1. Device status field
+    - This indicates the steps of the initialization process that have been
+		  completed
+		- values:
+		  * Acknowledge
+			  - Indicaes that the guest OS has found the device and recognized it as
+				  a valid virtio device
+			* Driver
+			  - Indicates that the OS knows how to drive the device
+			* Failed
+			  - Something went wrong in either my system or the device
+			* Features_OK
+			  - Indicates that all feature bits have been OK'd by the driver
+			* Driver_OK
+			  - Indicates that the driver is set-up, ready to drive the device
+			* Driver_Needs_Reset
+			  - Device encountered an error, needs to be reset
+		- Responsibilty of the driver to update device status
+			* Do NOT clear a status bit. If Driver sets the failed bit, the driver
+		    must reset the device before attempting to reinitialize
+
+ 2. Feature bits
+ 		- Don't accept bits that have not been offered by the device
+		- Don't accept bits that require a bit that hasn't been accepted
+
+ 3. Notifications
+ 		- Three types:
+			* configuration change
+				- Sent by device to driver
+				- Indicates that device configuration space has changed
+			* available buffer
+				- Indicates that a buffer has been made available
+			* used buffer
+				- I assume indicates that a buffer is being used? I don't know
+					what exactly to do with this
+
+ 4. Device configuration space
+ 		- Device needs to allow reading of device-specific configurations before
+			Features_OK is set by the driver
+ 		- I don't think that this means anything to me?
+
+ 5. >= 1 virtqueues
+ 		- Mechanism for bulk data transport
+		- Driver makes requests available to a device by adding a buffer to the
+			queue (sending it to the device)
+		- Device executes the request and adds a used buffer to the queue to let
+			the driver know by marking the buffer as used.
+		- Device reports number of bytes written to memory for each buffer
+			(aka "used length")
+		- Device not required to use buffers in the same order they have been sent
+
