@@ -308,10 +308,10 @@ void transmit_packet(void *pkt_data, uint16 pkt_len) {
   hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
   hdr->hdr_len = 0;
   
-  memmove(packet_buf , "\xff\xff\xff\xff\xff\xff", 6);
+  memmove(packet_buf , "\x02\xf3\xa5\x02\x3a\xb8", 6);
   memmove(packet_buf + 6, net.cfg.mac, 6);
-  packet_buf[12] = 0xff;
-  packet_buf[13] = 0xff;
+  packet_buf[12] = 0x7a;
+  packet_buf[13] = 0x05;
   memmove(packet_buf + 14, pkt_data, pkt_len);
 
   net.txq.desc[hdr_desc].flags |= VRING_DESC_F_NEXT; // This tells the device it's a chain
@@ -329,7 +329,7 @@ void transmit_packet(void *pkt_data, uint16 pkt_len) {
     if (res != 0) 
       panic("failed to apply padding");
   }
-
+  
   // Tell the device first index in chain of descriptors
   net.txq.driver_area->ring[net.txq.driver_area->idx % NUM] = hdr_desc;
   __sync_synchronize();
@@ -346,6 +346,7 @@ void transmit_packet(void *pkt_data, uint16 pkt_len) {
   while (net.txq.device_area->idx == prev_used_idx) {
     __sync_synchronize();
   }
+  printf("mac: %x:%x:%x:%x:%x:%x\n", net.cfg.mac[0], net.cfg.mac[1], net.cfg.mac[2], net.cfg.mac[3], net.cfg.mac[4], net.cfg.mac[5]);
 }
 
 uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
@@ -356,7 +357,7 @@ uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
 
     char *packet = (char *)net.rxq.desc[net.rxq.desc[id].next].addr;
 
-    printf("Interrupt: received packet of length %d\n", len);
+    printf("Interrupt: received packet of length %d\n", len - 10);
     // Optional: do something with 'packet'
     
     for (int i = 0; i < len; i++) {
