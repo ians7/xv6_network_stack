@@ -9,7 +9,7 @@ volatile static int started = 0;
 void transmit_pkt_test1() {
   char *pkt1_str = "Hello, world!";
   uint16 pkt1_len = strlen(pkt1_str);
-  transmit_packet(pkt1_str, pkt1_len);
+  transmit_packet(pkt1_str, pkt1_len, 0x7a05);
   printf("finished transmit_packet test 1\n");
 }
 
@@ -18,8 +18,8 @@ void transmit_pkt_test2() {
   uint16 pkt1_len = strlen(pkt1_str);
   char *pkt2_str = "Goodbye, world!";
   uint16 pkt2_len = strlen(pkt2_str);
-  transmit_packet(pkt1_str, pkt1_len);
-  transmit_packet(pkt2_str, pkt2_len);
+  transmit_packet(pkt1_str, pkt1_len, 0x7a05);
+  transmit_packet(pkt2_str, pkt2_len, 0x7a05);
   printf("finished transmit_packet test 2\n");
 }
 

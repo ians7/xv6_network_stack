@@ -125,3 +125,28 @@ thread_exit:
  li a7, SYS_thread_exit
  ecall
  ret
+.global socket
+socket:
+ li a7, SYS_socket
+ ecall
+ ret
+.global bind
+bind:
+ li a7, SYS_bind
+ ecall
+ ret
+.global accept
+accept:
+ li a7, SYS_accept
+ ecall
+ ret
+.global listen
+listen:
+ li a7, SYS_listen
+ ecall
+ ret
+.global connect
+connect:
+ li a7, SYS_connect
+ ecall
+ ret

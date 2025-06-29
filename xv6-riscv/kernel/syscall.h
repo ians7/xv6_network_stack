@@ -24,3 +24,8 @@
 #define SYS_create_thread 23
 #define SYS_join_thread 24
 #define SYS_thread_exit 25
+#define SYS_socket 26
+#define SYS_bind 27
+#define SYS_listen 28
+#define SYS_accept 29
+#define SYS_connect 30

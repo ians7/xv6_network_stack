@@ -40,3 +40,8 @@ entry("spoon");
 entry("create_thread");
 entry("join_thread");
 entry("thread_exit");
+entry("socket");
+entry("bind");
+entry("accept");
+entry("listen");
+entry("connect");

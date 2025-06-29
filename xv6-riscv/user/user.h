@@ -1,3 +1,5 @@
+#include "../kernel/sys/socket.h"
+
 struct stat;
 
 // system calls
@@ -24,9 +26,16 @@ int sleep(int);
 int uptime(void);
 int spoon(void*);
 int create_thread(void* (*fn_addr)(void *), void *args, void *stack_addr, void (*exit_fn)(uint64));
-int join_thread(uint64 thread_id, uint64 status_addr);
-int thread_exit(uint64 status_addr);
+int join_thread(int thread_id, int status_addr);
+int thread_exit(int status_addr);
 
+// socket.h
+int socket(int address_family, int address_socktype, int protocol);
+int accept(int socket, struct sockaddr *address, socklen_t address_len);
+int bind(int socket, const struct sockaddr *address, socklen_t address_len);
+int listen(int socket, int backlog);
+int connect(int socket, const struct sockaddr *address,
+            socklen_t address_len);
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -44,3 +53,11 @@ void free(void*);
 int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
+
+// socket.h
+int socket(int address_family, int address_socktype, int protocol);
+int accept(int socket, struct sockaddr *address, socklen_t address_len);
+int bind(int socket, const struct sockaddr *address, socklen_t address_len);
+int listen(int socket, int backlog);
+int connect(int socket, const struct sockaddr *address,
+            socklen_t address_len);

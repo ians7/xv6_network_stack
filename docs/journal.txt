@@ -87,3 +87,26 @@ to the beginning of my packet, but it turns out that this was due to me having
 a field in struct virtio_net_hdr that I did not need. Thus, some of the data 
 from the header was leaking into my actual packet data. Removing this field 
 fixed the issue.
+
+==== 06/28/2025 ====
+I haven't had a ton of time to work on this for the past few weeks since I 
+started working. Mainly what I have been struggling with is making sure that
+my VM can reach the outside internet. At this point, I'm not certain that it 
+can reach the outside internet, but it can for sure reach other machines on 
+my home network.
+
+I did this by creating a bridge on my machine that connects the VM tap
+interface to my ethernet port, allowing the packets from the tap to be sent to
+the outside internet through my computer ethernt port. I tested this by making
+sure that my laptop can receive packets from my tap interface on my desktop.
+
+Today, I worked for a few hours on researching the linux implementation of 
+TCP/IP sockets and defining the API that I will be using. I'm essentially 
+creating a copy of the Linux implementation, but I'm not including a lot of the
+extra features that I do not need for my simple implementation. I'm doing this
+in socket.h and ip.h, separating the IP functionality and the TCP functionality
+into these separate header files.
+
+==== 06/29/2025 ====
+Mainly what I did today was just clean up some of the types in my header files
+and get the syscalls set up. Now, I just need to implement all of them :D
