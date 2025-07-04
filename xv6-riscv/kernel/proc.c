@@ -6,7 +6,6 @@
 #include "proc.h"
 #include "defs.h"
 #include "sys/types.h"
-// #include "sys/socket.h"
 
 struct cpu cpus[NCPU];
 
@@ -502,36 +501,6 @@ uint64 join_thread(uint64 thread_id, uint64 status_addr) {
     sleep(p, &wait_lock);
   }
 
-  return 0;
-}
-
-uint64 
-socket(int address_family, int address_socktype, int protocol)
-{
-  return 0;
-}
-
-uint64
-bind(int soket, int sock_address, socklen_t address_len)
-{
-  return 0;
-}
-
-uint64
-listen(int socket, int backlog)
-{
-  return 0;
-}
-
-uint64
-accept(int socket, int address, int address_len)
-{
-  return 0;
-}
-
-uint64
-connect(int socket, int sockaddr, int address_len)
-{
   return 0;
 }
 

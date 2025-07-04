@@ -2,11 +2,21 @@
 #define SOCKET_H
 
 #include "types.h"
+// #include "../file.h"
 
 #define AF_INET 2
 
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
+
+struct socket {
+  struct file *file;
+  int src_ip;
+  int dest_ip;
+  int src_port;
+  int dest_port;
+  int protocol;
+};
 
 struct sockaddr {
   sa_family_t sa_family; // addr family (ipv4, ipv6, ...)
@@ -14,10 +24,9 @@ struct sockaddr {
 };
 
 int socket(int address_family, int address_socktype, int protocol);
-int accept(int socket, struct sockaddr *address, socklen_t address_len);
 int bind(int socket, const struct sockaddr *address, socklen_t address_len);
-int listen(int socket, int backlog);
-int connect(int socket, const struct sockaddr *address,
-            socklen_t address_len);
+int listen(int , int backlog);
+int accept(int socket, struct sockaddr *address, socklen_t address_len);
+int connect(int socket, const struct sockaddr *address, socklen_t address_len);
 
 #endif
