@@ -1,6 +1,9 @@
 #include "../types.h"
 #include "../riscv.h"
 #include "../defs.h"
+#include "../fs.h"
+#include "../spinlock.h"
+#include "../sleeplock.h"
 #include "../file.h"
 #include "socket.h"
 #include "net.h"
@@ -53,21 +56,22 @@ int tcp_socket_list_insert(struct socket* sock) {
 }
 
 int
-sockalloc(struct socket *sock)
+sockalloc(struct socket **sock)
 {
-  sock = kalloc();
+  *sock = (struct socket *)kalloc();
   if (sock == 0) {
     printf("ERROR: kalloc\n");
     return -1;
   }
+  memset(*sock, 0, PGSIZE);
 
-  int fd = tcp_socket_list_insert(sock);
+  int fd = tcp_socket_list_insert(*sock);
   if (fd == -1) {
     printf("socket: fd == -1\n");
-    kfree(sock);
+    kfree(*sock);
     return -1;
   }
-  sock->fd = fd;
+  (*sock)->fd = fd;
   return fd;
 }
 
@@ -175,12 +179,6 @@ accept(int socket, struct sockaddr *address, socklen_t address_len)
     return -1;
   }
 
-  sock->f = filealloc();
-  if (sock->f == 0) {
-    printf("ERROR: kalloc\n");
-    return -1;
-  }
-
   acquire(&sock->lock);
   while (!sock->pending) {
     sleep(sock, &sock->lock);
@@ -248,8 +246,18 @@ socket(int sock_family, int sock_type, int protocol)
   }
 
   struct socket *sock;
-  int fd = sockalloc(sock);
-  sock->f->type = FD_SOCKET;
+  int fd = sockalloc(&sock);
+  if (fd == -1) {
+    printf("socket: sockalloc failed\n");
+    return -1;
+  }
+
+  sock->f = filealloc();
+  if (sock->f == 0) {
+    printf("ERROR: filealloc\n");
+    return -1;
+  }
+
   // TODO: Write the methods for sock_read and sock_write, set the fields of file to those methods
 
   switch(protocol){

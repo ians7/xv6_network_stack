@@ -4,6 +4,7 @@
 #include "param.h"
 #include "memlayout.h"
 #include "virtio.h"
+#include "sys/socket.h"
 
 // address of the virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
@@ -337,11 +338,11 @@ uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
 
     char *packet = (char *)net.rxq.desc[net.rxq.desc[id].next].addr;
 
-    // printf("Interrupt: received packet of length %d\n", len - 10);
+    printf("Interrupt: received packet of length %d\n", len - 10);
 
-    // for (int i = 0; i < len; i++) {
-    //   printf("%x", packet[i]);
-    // }
+    for (int i = 0; i < len; i++) {
+      printf("%x", packet[i]);
+    }
 
     // Requeue the buffer
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;
