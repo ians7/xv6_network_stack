@@ -2,20 +2,42 @@
 #define SOCKET_H
 
 #include "types.h"
-// #include "../file.h"
+#include "../spinlock.h"
 
-#define AF_INET 2
+/* address family */
+#define AF_INET 0
 
+/* socket type */
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
 
+/* socket protocol */
+#define IPPROTO_TCP 16
+#define IPPROTO_UDP 17
+
+/* socket state */
+#define CLOSED 50
+#define BOUND 51
+#define LISTENING 52
+#define SYN_SENT 53
+#define SYN_RECVD 54
+#define ESTABLISHED 55
+
+
 struct socket {
-  struct file *file;
-  int src_ip;
-  int dest_ip;
-  int src_port;
-  int dest_port;
-  int protocol;
+  struct file *f;          // Socket file
+  struct socket *pending;  // incoming socket connection
+  // int num_connections;     // number of sockets in the backlog
+  struct spinlock lock;
+  int src_ip;              // ip of the socket source
+  int dest_ip;             // ip of the destination socket
+  int src_port;            // port of the source application
+  int dest_port;           // port of the desination application
+  int protocol;            // socket protocol
+  int type;                // type of the socket (tcp, udp, etc...)
+  int family;              // ip address family
+  int state;               // current state of the socket
+  int fd;
 };
 
 struct sockaddr {
@@ -28,5 +50,6 @@ int bind(int socket, const struct sockaddr *address, socklen_t address_len);
 int listen(int , int backlog);
 int accept(int socket, struct sockaddr *address, socklen_t address_len);
 int connect(int socket, const struct sockaddr *address, socklen_t address_len);
+void socket_init();
 
 #endif

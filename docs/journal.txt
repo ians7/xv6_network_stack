@@ -110,3 +110,13 @@ into these separate header files.
 ==== 06/29/2025 ====
 Mainly what I did today was just clean up some of the types in my header files
 and get the syscalls set up. Now, I just need to implement all of them :D
+
+==== 07/20/2025 ====
+I've been pecking away at the project for a few weeks now, making a little bit
+of progress at a time. Motivation is getting tough at this point between
+working full time, going to the gym every day, and other responsibilities. 
+Today I managed to finish up my implementation of `socket()`. I've also 
+been creating a number of other structs and things that will be important for
+my net stack. ChatGPT has been a vital help to the project at this point. I've
+been using it as someone to bounce ideas off of and learn some of the practices
+that are used in the linux kernel implementation.

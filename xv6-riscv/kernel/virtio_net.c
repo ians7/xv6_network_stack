@@ -2,7 +2,6 @@
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
-#include "spinlock.h"
 #include "memlayout.h"
 #include "virtio.h"
 
@@ -31,32 +30,8 @@ struct virtio_net_hdr {
   uint16 csum_offset;
 };
 
-struct virtq {
-  struct virtq_desc *desc;
-  struct virtq_avail *driver_area; // extra data from driver to device
-  struct virtq_used *device_area;  // extra data from device to driver
-  int num;
-  char free[NUM];
-  int used_idx;
-};
-
-struct virtio_net_config {
-  uint8 mac[6];
-  uint16 status;
-  uint16 max_virtqueue_pairs;
-  uint16 mtu;
-};
-
-// I want to hold the driver state separate from the device state,
-// virtio_net_config. This is because the driver has more data
-// that it needs to track than the device does, so I should
-// create a separate struct
-struct virtio_net {
-  struct virtio_net_config cfg;
-  struct spinlock vnet_lock;
-  struct virtq txq;
-  struct virtq rxq;
-} net;
+struct virtio_net net;
+extern struct virtio_net net;
 
 /*
  * This function takes a virtqueue for which a descriptor needs to be allocated
