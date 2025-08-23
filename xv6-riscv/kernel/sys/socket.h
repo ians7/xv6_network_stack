@@ -3,7 +3,6 @@
 
 #include "net.h"
 #include "types.h"
-#include "../spinlock.h"
 
 /* address family */
 #define AF_INET 0

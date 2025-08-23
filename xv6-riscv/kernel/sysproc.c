@@ -1,11 +1,11 @@
 #include "types.h"
 #include "sys/types.h"
-#include "sys/socket.h"
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
+#include "sys/socket.h"
 #include "proc.h"
 
 uint64 sys_exit(void) {

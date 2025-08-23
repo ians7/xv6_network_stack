@@ -1,7 +1,6 @@
 #ifndef IP_H
 #define IP_H
 
-#include "socket.h"
 #include "types.h"
 
 #define INADDR_ANY 1       // local host address

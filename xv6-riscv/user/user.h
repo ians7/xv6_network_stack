@@ -1,3 +1,4 @@
+#include "../kernel/spinlock.h"
 #include "../kernel/sys/socket.h"
 
 struct stat;

@@ -3,6 +3,7 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
+#include "spinlock.h"
 #include "sys/net.h"
 #include "sys/socket.h"
 
