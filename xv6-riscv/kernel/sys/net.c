@@ -34,7 +34,6 @@ int
 getaddrinfo(char *node, char *port, const struct addrinfo *hints,
                 struct addrinfo *result)
 {
-  
   return 0;
 }
 

@@ -1,6 +1,7 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
+#include "net.h"
 #include "types.h"
 #include "../spinlock.h"
 
@@ -22,7 +23,6 @@
 #define SYN_SENT 53
 #define SYN_RECVD 54
 #define ESTABLISHED 55
-
 
 struct socket {
   struct file *f;          // Socket file

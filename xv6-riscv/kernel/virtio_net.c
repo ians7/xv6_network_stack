@@ -1,3 +1,4 @@
+#include "sys/net.h"
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
@@ -29,6 +30,21 @@ struct virtio_net_hdr {
   uint16 gso_size;
   uint16 csum_start;
   uint16 csum_offset;
+};
+
+struct ip_packet {
+  uint8 version; 
+  uint8 hdr_len; 
+  uint8 type_service; 
+  uint16 total_len; 
+  uint16 identification; 
+  uint16 flags; 
+  uint8 time_to_live; 
+  uint8 protocol; 
+  uint16 hdr_csum; 
+  uint32 src_ip; 
+  uint32 dst_ip;
+  char *data;
 };
 
 struct virtio_net net;
@@ -330,19 +346,27 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
          net.cfg.mac[2], net.cfg.mac[3], net.cfg.mac[4], net.cfg.mac[5]);
 }
 
+void print_packet_info(struct ip_packet *packet) {
+  printf("protocol: %d\n", packet->protocol);
+  printf("src_ip: %d\n", ntohs(packet->src_ip));
+  printf("dst_ip: %d\n", packet->dst_ip);
+  for (int i = 0; i < packet->total_len - packet->hdr_len; i++) {
+    printf("%c", packet->data[i]);
+  }
+  printf("\n");
+}
+
 uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
   acquire(&net.vnet_lock);
   while (net.rxq.used_idx != net.rxq.device_area->idx) {
     int id = net.rxq.device_area->ring[net.rxq.used_idx % NUM].id;
     uint len = net.rxq.device_area->ring[net.rxq.used_idx % NUM].len;
 
-    char *packet = (char *)net.rxq.desc[net.rxq.desc[id].next].addr;
+    struct ip_packet *packet = (struct ip_packet *)net.rxq.desc[net.rxq.desc[id].next].addr;
 
     printf("Interrupt: received packet of length %d\n", len - 10);
 
-    for (int i = 0; i < len; i++) {
-      printf("%x", packet[i]);
-    }
+    print_packet_info(packet);
 
     // Requeue the buffer
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;
