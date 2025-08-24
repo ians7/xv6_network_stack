@@ -34,18 +34,34 @@ struct virtio_net_hdr {
 };
 
 struct ip_packet {
-  uint8 version; 
-  uint8 hdr_len; 
-  uint8 type_service; 
+  uint8 ver_ihl; // upper 4 vits version, lower 4 bits IHL
+  uint8 tos; 
   uint16 total_len; 
+
   uint16 identification; 
-  uint16 flags; 
-  uint8 time_to_live; 
+  uint16 fragment_info; // 3 bits flags, 13 bits fragment offset
+
+  uint8 ttl; 
   uint8 protocol; 
   uint16 hdr_csum; 
+
   uint32 src_ip; 
   uint32 dst_ip;
-  char *data;
+
+  uint8 *payload;
+  uint16 payload_len;
+};
+
+struct eth_hdr {
+  uint8 dst_addr[6];
+  uint8 src_addr[6];
+  uint16 type;
+} __attribute__((packed));
+
+struct eth_frame {
+  struct eth_hdr *hdr;
+  uint8 *payload;
+  uint8 payload_len;
 };
 
 struct virtio_net net;
@@ -347,27 +363,135 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
          net.cfg.mac[2], net.cfg.mac[3], net.cfg.mac[4], net.cfg.mac[5]);
 }
 
-void print_packet_info(struct ip_packet *packet) {
-  printf("protocol: %d\n", packet->protocol);
-  printf("src_ip: %d\n", ntohs(packet->src_ip));
-  printf("dst_ip: %d\n", packet->dst_ip);
-  for (int i = 0; i < packet->total_len - packet->hdr_len; i++) {
-    printf("%c", packet->data[i]);
+void print_ip_packet(struct ip_packet *ip) {
+  printf("\n");
+  printf("IPv%d packet from %d.%d.%d.%d to %d.%d.%d.%d, proto %d, payload %d bytes\n",
+      ip->ver_ihl >> 4,
+      (ip->src_ip >> 24) & 0xFF, (ip->src_ip >> 16) & 0xFF,
+      (ip->src_ip >> 8) & 0xFF,  ip->src_ip & 0xFF,
+      (ip->dst_ip >> 24) & 0xFF, (ip->dst_ip >> 16) & 0xFF,
+      (ip->dst_ip >> 8) & 0xFF,  ip->dst_ip & 0xFF,
+      ip->protocol, ip->payload_len);
+  printf("\n");
+}
+
+int parse_ip_packet(uint8 *buf, int len, struct ip_packet *pkt) {
+  if (len < 20) return -1; // too short for IPv4 header
+
+  pkt->ver_ihl = buf[0];
+  pkt->tos = buf[1];
+  pkt->total_len = ntohs(*(uint16 *)(buf + 2));
+  pkt->identification = ntohs(*(uint16 *)(buf + 4));
+  pkt->fragment_info = ntohs(*(uint16 *)(buf + 6));
+  pkt->ttl = buf[8];
+  pkt->protocol = buf[9];
+  pkt->hdr_csum = ntohs(*(uint16 *)(buf + 10));
+  pkt->src_ip = ntohl(*(uint32 *)(buf + 12));
+  pkt->dst_ip = ntohl(*(uint32 *)(buf + 16));
+  
+  pkt->ver_ihl = buf[0];
+  pkt->tos = buf[1];
+  pkt->total_len = ntohs(*(uint16 *)(buf + 2));
+  pkt->identification = ntohs(*(uint16 *)(buf + 4));
+  pkt->fragment_info = ntohs(*(uint16 *)(buf + 6));
+  pkt->ttl = buf[8];
+  pkt->protocol = buf[9];
+  pkt->hdr_csum = ntohs(*(uint16 *)(buf + 10));
+  pkt->src_ip = ntohl(*(uint32 *)(buf + 12));
+  pkt->dst_ip = ntohl(*(uint32 *)(buf + 16));
+
+  int hdr_len = (pkt->ver_ihl & 0x0F) * 4;
+  if (hdr_len < 20 || hdr_len > len) return -1;
+
+  if (pkt->total_len > len) return -1;
+
+  pkt->payload = buf + hdr_len;
+  pkt->payload_len = pkt->total_len - hdr_len;
+
+  return 0;
+}
+
+void print_eth_frame(struct eth_frame *frame) {
+  printf("\n");
+  printf("dst_addr: %x:%x:%x:%x:%x:%x\n", frame->hdr->dst_addr[0],
+                                          frame->hdr->dst_addr[1],
+                                          frame->hdr->dst_addr[2],
+                                          frame->hdr->dst_addr[3],
+                                          frame->hdr->dst_addr[4],
+                                          frame->hdr->dst_addr[5]);
+  printf("src_addr: %x:%x:%x:%x:%x:%x\n", frame->hdr->src_addr[0],
+                                          frame->hdr->src_addr[1],
+                                          frame->hdr->src_addr[2],
+                                          frame->hdr->src_addr[3],
+                                          frame->hdr->src_addr[4],
+                                          frame->hdr->src_addr[5]);
+
+  switch(ntohs(frame->hdr->type)) {
+    case(0x0800):
+      printf("type: IPv4\n");
+      break;
+    case(0x0806):
+      printf("type: ARP\n");
+      break;
+    case(0x08DD):
+      printf("type: IPv6\n");
+      break;
+  }
+
+  printf("payload_len: %d\n", frame->payload_len);
+  printf("payload :\n\t");
+  for (int i = 0; i < frame->payload_len; i++) {
+    printf("%x", frame->payload[i]);
+    if (i > 0 && i % 40 == 0)
+      printf("\n\t");
   }
   printf("\n");
 }
 
-uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
+int parse_eth_packet(uint8 *packet, int pkt_len, struct eth_frame *eth_frame) {
+  eth_frame->hdr = (struct eth_hdr *)packet;
+  eth_frame->payload = packet + sizeof(struct eth_hdr);
+  eth_frame->payload_len = pkt_len - sizeof(struct eth_frame);
+  return 0;
+}
+
+void handle_packet(uint8 *packet, uint len) {
+    printf("Interrupt: received packet of length %d", len - 10);
+
+    struct eth_frame *eth_frame = kalloc();
+    struct ip_packet *ip_pkt = kalloc();
+    memset(eth_frame, 0, PGSIZE);
+
+    if (parse_eth_packet(packet, len, eth_frame) != 0) {
+      printf("failed to parse ethernet packet\n");
+    } else {
+      print_eth_frame(eth_frame);
+    }
+    switch(ntohs(eth_frame->hdr->type)) {
+      case(PROTO_IPV4):
+        if (parse_ip_packet(eth_frame->payload, eth_frame->payload_len, ip_pkt) == 0) {
+          print_ip_packet(ip_pkt);
+        }
+        break;
+
+      default:
+        printf("unsupported protocol: %d\n", eth_frame->hdr->type);
+        break;
+    }
+
+    kfree(eth_frame);
+    kfree(ip_pkt);
+}
+
+uint16 receive_packet() {
   acquire(&net.vnet_lock);
   while (net.rxq.used_idx != net.rxq.device_area->idx) {
     int id = net.rxq.device_area->ring[net.rxq.used_idx % NUM].id;
     uint len = net.rxq.device_area->ring[net.rxq.used_idx % NUM].len;
 
-    struct ip_packet *packet = (struct ip_packet *)net.rxq.desc[net.rxq.desc[id].next].addr;
+    uint8 *packet = (uint8 *)net.rxq.desc[net.rxq.desc[id].next].addr + 10;
 
-    printf("Interrupt: received packet of length %d\n", len - 10);
-
-    print_packet_info(packet);
+    handle_packet(packet, len);
 
     // Requeue the buffer
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;

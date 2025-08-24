@@ -12,7 +12,7 @@
 #define SOCK_DGRAM 2
 
 /* socket protocol */
-#define IPPROTO_TCP 16
+#define IPPROTO_TCP 6
 #define IPPROTO_UDP 17
 
 /* socket state */

@@ -149,4 +149,4 @@ struct virtio_net {
 
 // virtio_net API
 void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol);
-uint16 receive_packet(void *pkt_buf, uint16 num_bytes);
+uint16 receive_packet();

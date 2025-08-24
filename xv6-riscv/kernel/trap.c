@@ -193,7 +193,7 @@ devintr()
       virtio_disk_intr();
     } else if (irq == VIRTIO1_IRQ) {
       void *temp;
-      receive_packet(temp, 0);
+      receive_packet();
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
     }

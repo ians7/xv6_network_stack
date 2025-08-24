@@ -9,6 +9,10 @@
 #define LONG_DOMAIN 1
 #define LONG_DOMAIN_SECTION 2
 
+#define PROTO_IPV4 0x0800
+#define PROTO_IPV6 0x0806
+#define PROTO_ARP 0x08DD
+
 struct net_state {
     uint32 ip_addr;       // System IP address in network byte order
     uint8 mac_addr[6];    // Device MAC address
@@ -38,11 +42,6 @@ struct sockaddr_in {
 };
 
 
-enum proto_type {
-  PROTO_TCP, 
-  PROTO_UDP,
-};
-
 struct addrinfo {
   uint32 ai_family;
   uint32 ai_socktype;
@@ -61,5 +60,6 @@ int ip_to_u32(const char *ip);
 int net_init();
 uint16 ntohs(uint16 netshort);
 uint16 htons(uint16 hostshort);
+uint32 ntohl(uint32 netlong);
 
 #endif

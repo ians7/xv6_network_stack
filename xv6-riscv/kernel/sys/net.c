@@ -1,4 +1,5 @@
 #include "net.h"
+#include "../spinlock.h"
 #include "../virtio.h"
 
 struct DNS_packet_header {
@@ -97,6 +98,14 @@ node_to_dns(char *name, char *res)
 uint16
 ntohs(uint16 netshort) {
   return (netshort >> 8) | (netshort << 8);
+}
+
+uint32
+ntohl(uint32 netlong) {
+  return ((netlong & 0x000000FFU) << 24) |
+    ((netlong & 0x0000FF00U) << 8)  |
+    ((netlong & 0x00FF0000U) >> 8)  |
+    ((netlong & 0xFF000000U) >> 24);
 }
 
 uint16
