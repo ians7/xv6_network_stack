@@ -10,8 +10,8 @@
 #define LONG_DOMAIN_SECTION 2
 
 #define PROTO_IPV4 0x0800
-#define PROTO_IPV6 0x0806
-#define PROTO_ARP 0x08DD
+#define PROTO_ARP  0x0806
+#define PROTO_IPV6 0x86DD
 
 struct net_state {
     uint32 ip_addr;       // System IP address in network byte order

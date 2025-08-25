@@ -33,6 +33,30 @@ struct virtio_net_hdr {
   uint16 csum_offset;
 };
 
+struct tcp_packet {
+  uint16 src_port;
+  uint16 dst_port;
+  uint32 seq_num;
+  uint32 ack_num;
+  uint8 data_offset;
+  uint8 flags;
+  uint16 window;
+  uint16 csum;
+  uint16 urgent_ptr;
+
+  uint8 *payload;
+  int payload_len;
+};
+
+struct udp_packet {
+  uint16 src_port;
+  uint16 dst_port; 
+  uint16 len;
+  uint16 csum;
+  uint8 *payload;
+  int payload_len;
+};
+
 struct ip_packet {
   uint8 ver_ihl; // upper 4 vits version, lower 4 bits IHL
   uint8 tos; 
@@ -365,18 +389,29 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
 
 void print_ip_packet(struct ip_packet *ip) {
   printf("\n");
-  printf("IPv%d packet from %d.%d.%d.%d to %d.%d.%d.%d, proto %d, payload %d bytes\n",
+  printf("IPv%d packet from %d.%d.%d.%d to %d.%d.%d.%d",
       ip->ver_ihl >> 4,
       (ip->src_ip >> 24) & 0xFF, (ip->src_ip >> 16) & 0xFF,
       (ip->src_ip >> 8) & 0xFF,  ip->src_ip & 0xFF,
       (ip->dst_ip >> 24) & 0xFF, (ip->dst_ip >> 16) & 0xFF,
-      (ip->dst_ip >> 8) & 0xFF,  ip->dst_ip & 0xFF,
-      ip->protocol, ip->payload_len);
+      (ip->dst_ip >> 8) & 0xFF,  ip->dst_ip & 0xFF);
+  switch(ip->protocol) {
+    case(IPPROTO_TCP):
+      printf(", proto TCP");
+      break;
+    case(IPPROTO_UDP):
+      printf(", proto UDP");
+      break;
+    default:
+      printf("unsupported protocol\n");
+      break;
+  }
+  printf(", payload %d bytes\n", ip->payload_len);
   printf("\n");
 }
 
 int parse_ip_packet(uint8 *buf, int len, struct ip_packet *pkt) {
-  if (len < 20) return -1; // too short for IPv4 header
+  printf("\tparsing ip packet\n");
 
   pkt->ver_ihl = buf[0];
   pkt->tos = buf[1];
@@ -402,6 +437,7 @@ int parse_ip_packet(uint8 *buf, int len, struct ip_packet *pkt) {
 
   int hdr_len = (pkt->ver_ihl & 0x0F) * 4;
   if (hdr_len < 20 || hdr_len > len) return -1;
+  printf("\tvalid packet\n");
 
   if (pkt->total_len > len) return -1;
 
@@ -448,35 +484,110 @@ void print_eth_frame(struct eth_frame *frame) {
   printf("\n");
 }
 
-int parse_eth_packet(uint8 *packet, int pkt_len, struct eth_frame *eth_frame) {
-  eth_frame->hdr = (struct eth_hdr *)packet;
-  eth_frame->payload = packet + sizeof(struct eth_hdr);
-  eth_frame->payload_len = pkt_len - sizeof(struct eth_frame);
+int parse_eth_packet(uint8 *buf, int len, struct eth_frame *eth_frame) {
+  eth_frame->hdr = (struct eth_hdr *)buf;
+  eth_frame->payload = buf + sizeof(struct eth_hdr);
+  eth_frame->payload_len = len - sizeof(struct eth_frame);
+  return 0;
+}
+
+int handle_tcp_packet(struct tcp_packet *tcp_pkt) {
+  printf("TCP packet: src_port=%d dst_port=%d seq=%d ack=%d\n",
+      tcp_pkt->src_port, tcp_pkt->dst_port, tcp_pkt->seq_num, tcp_pkt->ack_num);
+  return 0;
+}
+
+int handle_udp_packet(struct udp_packet *udp_pkt) {
+  printf("\tUDP packet: src_port=%d dst_port=%d seq=%d ack=%d\n",
+      udp_pkt->src_port, udp_pkt->dst_port, udp_pkt->len, udp_pkt->csum);
+  return 0;
+}
+
+int parse_udp_packet(uint8 *buf, int len, struct udp_packet *udp_pkt) {
+  if (len < 8) return -1;  // too short for UDP header
+
+  udp_pkt->src_port = ntohs(*(uint16 *)(buf));
+  udp_pkt->dst_port = ntohs(*(uint16 *)(buf + 2));
+  udp_pkt->len      = ntohs(*(uint16 *)(buf + 4));
+  udp_pkt->csum     = ntohs(*(uint16 *)(buf + 6));
+
+  if (udp_pkt->len < 8 || udp_pkt->len > len)
+      return -1;  // malformed length
+
+  udp_pkt->payload = buf + 8;
+  udp_pkt->payload_len = udp_pkt->len - 8;
+
+  return 0;
+}
+
+int parse_tcp_packet(uint8 *buf, int len, struct tcp_packet *tcp_pkt) {
+  if (len < 20) return -1; // minimum TCP header
+
+  tcp_pkt->src_port = ntohs(*(uint16*)(buf));
+  tcp_pkt->dst_port = ntohs(*(uint16*)(buf+2));
+  tcp_pkt->seq_num  = ntohl(*(uint32*)(buf+4));
+  tcp_pkt->ack_num  = ntohl(*(uint32*)(buf+8));
+  tcp_pkt->data_offset = (buf[12] >> 4) & 0xF;
+  tcp_pkt->flags = buf[13];
+  tcp_pkt->window = ntohs(*(uint16*)(buf+14));
+  tcp_pkt->csum = ntohs(*(uint16*)(buf+16));
+  tcp_pkt->urgent_ptr = ntohs(*(uint16*)(buf+18));
+
+  int hdr_len = tcp_pkt->data_offset * 4;
+  if (hdr_len < 20 || hdr_len > len) return -1;
+
+  tcp_pkt->payload = buf + hdr_len;
+  tcp_pkt->payload_len = len - hdr_len;
+
+  return 0;
+}
+
+int handle_ip4_packet(struct ip_packet *ip_pkt) {
+  switch(ip_pkt->protocol) {
+    case IPPROTO_TCP:
+      struct tcp_packet *tcp = kalloc();
+      memset(tcp, 0, PGSIZE);
+      if (parse_tcp_packet(ip_pkt->payload, ip_pkt->payload_len, tcp) == 0) {
+        handle_tcp_packet(tcp);
+      }
+      kfree(tcp);
+      break;
+    case IPPROTO_UDP:
+      struct udp_packet *udp = kalloc();
+      memset(udp, 0, PGSIZE);
+      if (parse_udp_packet(ip_pkt->payload, ip_pkt->payload_len, udp) == 0) {
+        handle_udp_packet(udp);
+      }
+      kfree(udp);
+    default:
+      printf("unsupported ip protocol: %d\n", ip_pkt->protocol);
+      break;
+  }
   return 0;
 }
 
 void handle_packet(uint8 *packet, uint len) {
-    printf("Interrupt: received packet of length %d", len - 10);
+    printf("Interrupt: received packet of length %d\n", len - 10);
 
     struct eth_frame *eth_frame = kalloc();
     struct ip_packet *ip_pkt = kalloc();
     memset(eth_frame, 0, PGSIZE);
+    memset(ip_pkt, 0, PGSIZE);
 
-    if (parse_eth_packet(packet, len, eth_frame) != 0) {
-      printf("failed to parse ethernet packet\n");
-    } else {
-      print_eth_frame(eth_frame);
-    }
-    switch(ntohs(eth_frame->hdr->type)) {
-      case(PROTO_IPV4):
-        if (parse_ip_packet(eth_frame->payload, eth_frame->payload_len, ip_pkt) == 0) {
-          print_ip_packet(ip_pkt);
-        }
-        break;
-
-      default:
-        printf("unsupported protocol: %d\n", eth_frame->hdr->type);
-        break;
+    if (parse_eth_packet(packet, len, eth_frame) == 0) {
+      switch(ntohs(eth_frame->hdr->type)) {
+        case PROTO_IPV4:
+          if (parse_ip_packet(eth_frame->payload, eth_frame->payload_len, ip_pkt) == 0) {
+            handle_ip4_packet(ip_pkt);
+          } 
+          break;
+        case PROTO_ARP:
+          printf("ARP packet\n");
+          break;
+        default:
+          printf("Unsupported ethertype %x\n", ntohs(eth_frame->hdr->type));
+          break;
+      }
     }
 
     kfree(eth_frame);

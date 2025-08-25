@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Create tap and bridge
+# Create tap
 sudo ip tuntap add dev tap0 mode tap
-sudo ip link add name br0 type bridge
 
 # Bring interfaces down (safely)
 sudo ip link set enp6s0 down
 sudo ip link set tap0 down
+sudo ip link set br0 down
 
 # Attach interfaces to bridge
 sudo ip link set enp6s0 master br0
