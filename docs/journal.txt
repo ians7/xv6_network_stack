@@ -170,3 +170,12 @@ auditing my code path.
 I also had trouble with how I wanted to separate fucntionality between my
 syscalls and my api. Ultimately, it came down to design decision, but I 
 bounced my ideas off of chatgpt and asked about typical linux kernel practice
+
+==== 09/02/2025 ====
+I've been working on udp_sendto. it seems to be going okay, but I think that I
+might be building the packets incorrectly. The udp server machine receives the
+datagrams (proven by wireshark), but I suspect that the datagrams are malformed
+because the server application is not receiving them. Unfortunately the summer
+is now over, and I will likely not be able to work on the project any longer. I 
+will probably write a reflection sometime soon so that I can talk about it at
+the career fair and whatnot
