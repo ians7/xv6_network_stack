@@ -1,6 +1,7 @@
 #ifndef IP_H
 #define IP_H
 
+#include "socket.h"
 #include "types.h"
 
 #define INADDR_ANY 1       // local host address
@@ -21,14 +22,17 @@ struct net_state {
     // other state like DHCP, DNS, etc.
 };
 
+// Export the global state
+extern struct net_state netconf;
+
 struct port_binding {
   uint16 ip_addr;
   uint16 port;
   struct socket *sock;
 };
 
-// Export the global state
-extern struct net_state netconf;
+extern struct port_binding *udp_port_binds[512];
+extern struct port_binding *tcp_port_binds[512];
 
 struct in_addr {
   in_addr_t s_addr; // socket address
@@ -58,8 +62,32 @@ int freeaddrinfo(struct addrinfo *res);
 int node_to_dns(char *name, char *res);
 int ip_to_u32(const char *ip);
 int net_init();
-uint16 ntohs(uint16 netshort);
-uint16 htons(uint16 hostshort);
-uint32 ntohl(uint32 netlong);
+
+static inline uint16
+htons(uint16 hostshort) {
+  return (hostshort >> 8) | (hostshort << 8);
+}
+
+static inline uint16
+ntohs(uint16 netshort) {
+  return (netshort >> 8) | (netshort << 8);
+}
+
+static inline uint32
+ntohl(uint32 netlong) {
+  return ((netlong & 0x000000FFU) << 24) |
+    ((netlong & 0x0000FF00U) << 8)  |
+    ((netlong & 0x00FF0000U) >> 8)  |
+    ((netlong & 0xFF000000U) >> 24);
+}
+
+static inline uint32 
+htonl(uint32 hostlong) {
+    return ((hostlong & 0x000000FFU) << 24) |
+           ((hostlong & 0x0000FF00U) << 8)  |
+           ((hostlong & 0x00FF0000U) >> 8)  |
+           ((hostlong & 0xFF000000U) >> 24);
+}
+
 
 #endif

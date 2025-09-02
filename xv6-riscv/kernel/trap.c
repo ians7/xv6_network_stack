@@ -12,6 +12,8 @@ uint ticks;
 
 extern char trampoline[], uservec[], userret[];
 
+uint virtq_used = 0;
+
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -192,7 +194,6 @@ devintr()
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
     } else if (irq == VIRTIO1_IRQ) {
-      void *temp;
       receive_packet();
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);

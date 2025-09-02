@@ -147,6 +147,8 @@ struct virtio_net {
   struct virtq rxq;
 };
 
+extern struct virtio_net net;
+
 // virtio_net API
 void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol);
 uint16 receive_packet();

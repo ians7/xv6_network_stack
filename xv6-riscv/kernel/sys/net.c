@@ -1,6 +1,10 @@
-#include "net.h"
+#include "../types.h"
+#include "../riscv.h"
+#include "../defs.h"
 #include "../spinlock.h"
 #include "../virtio.h"
+#include "arp.h"
+#include "net.h"
 
 struct DNS_packet_header {
   uint16 id;
@@ -17,12 +21,14 @@ struct DNS_question {
   uint16 q_class;
 };
 
-struct net_state netconf;
-extern struct net_state netconf;
+// const int temp_ip = 0x0200A8C0;
+const int temp_ip = 0x89fea8c0;
 
-extern struct virtio_net net;
-
-const int temp_ip = 0xC0A80002;
+struct net_state netconf = {
+  .ip_addr = temp_ip,
+  .gateway = 0,
+  .subnet_mask = 0,
+};
 
 int my_strlen(char *string) {
   for (int i = 0; ; i++) {
@@ -95,30 +101,10 @@ node_to_dns(char *name, char *res)
   return 0;
 }
 
-uint16
-ntohs(uint16 netshort) {
-  return (netshort >> 8) | (netshort << 8);
-}
-
-uint32
-ntohl(uint32 netlong) {
-  return ((netlong & 0x000000FFU) << 24) |
-    ((netlong & 0x0000FF00U) << 8)  |
-    ((netlong & 0x00FF0000U) >> 8)  |
-    ((netlong & 0xFF000000U) >> 24);
-}
-
-uint16
-htons(uint16 hostshort) {
-  return (hostshort >> 8) | (hostshort << 8);
-}
-
-
 int net_init() {
-  netconf.ip_addr = temp_ip;
-  for (int i = 0; i < 6; i++)
+  for (int i = 0; i < 6; i++) {
     netconf.mac_addr[i] = net.cfg.mac[i];
-  netconf.gateway = 0;
-  netconf.subnet_mask = 0;
+  }
+  arp_insert(temp_ip, netconf.mac_addr);
   return 0;
 }

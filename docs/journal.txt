@@ -120,3 +120,53 @@ been creating a number of other structs and things that will be important for
 my net stack. ChatGPT has been a vital help to the project at this point. I've
 been using it as someone to bounce ideas off of and learn some of the practices
 that are used in the linux kernel implementation.
+
+==== 08/25/2025 ====
+I went of vacation for a couple weeks, so I wasn't able to work on the project
+during that time. Since getting back, I've worked on it pretty intensely for a 
+few days. I created the ethernet, tcp, and ip parsing functions.
+
+These went pretty smoothly, I utilized Chatgpt to do the work of filling in the
+struct fields so that I wouldn't have to type it all out. I separated the proto
+headers and frames (hdr + payload) to make sure that all of the data in the 
+headers would be packed together in memory, and the payload can be stored
+however the OS wants to store it since it could potentially be a huge chunk of
+memory.
+
+I'm now working on building and transmitting packets. I forsee this being a 
+time consiming process making sure that the functions can access all of the
+information that they need to craft packets. I'm mainly making sure that my
+system is capable of the handshake before implementing any user `send()` or 
+`recv()` functions.
+
+==== 08/26/2025 ====
+I put in a ton of work today. Basically, all I did today was implement ARP
+and separate all of the protocol code from virtio_net.c to their own files.
+I've done all of ARP by now. I found that I created a bug in my code where
+I was running out of descriptors (alloc_desc returned -1) and I was not
+checking for this condition. I decided that I would simply start dropping
+packets when I run out of descriptors, this being a limitation to my system.
+
+Next, I'd like to start implementing UDP sockets. I wanted to go straight to 
+TCP sockets, but UDP will be a good place to start.
+
+==== 08/28/2025 ====
+Just putting in the work to implement udp. made some things a little more
+flexible for tcp/udp by making udp and tcp version of the socket api methods,
+and then the api methods call the correct one from a function pointer in the
+struct socket.
+
+I've gotten around to implementing udp_bind, but I still need to implement
+udp_close. Before working on that though, I'm going to work on implementing
+the send, recv, sendto, and recvfrom syscalls. close isn't currently imprtant
+for getting things up and running, so that is going to be a problem for future
+me.
+
+I can successfully launch a UDP server and read the data from another machine on
+my network! Some issues that I encountered: I passed along incorrect header 
+data, which I was able to debug with wireshark (to verify the packet) and
+auditing my code path.
+
+I also had trouble with how I wanted to separate fucntionality between my
+syscalls and my api. Ultimately, it came down to design decision, but I 
+bounced my ideas off of chatgpt and asked about typical linux kernel practice

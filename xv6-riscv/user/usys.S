@@ -150,3 +150,23 @@ connect:
  li a7, SYS_connect
  ecall
  ret
+.global send
+send:
+ li a7, SYS_send
+ ecall
+ ret
+.global recv
+recv:
+ li a7, SYS_recv
+ ecall
+ ret
+.global sendto
+sendto:
+ li a7, SYS_sendto
+ ecall
+ ret
+.global recvfrom
+recvfrom:
+ li a7, SYS_recvfrom
+ ecall
+ ret

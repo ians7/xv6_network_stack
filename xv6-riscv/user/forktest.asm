@@ -47,7 +47,7 @@ forktest(void)
 
   print("fork test\n");
   38:	00000517          	auipc	a0,0x0
-  3c:	48050513          	addi	a0,a0,1152 # 4b8 <connect+0xa>
+  3c:	4a850513          	addi	a0,a0,1192 # 4e0 <recvfrom+0xe>
   40:	00000097          	auipc	ra,0x0
   44:	fc0080e7          	jalr	-64(ra) # 0 <print>
 
@@ -71,7 +71,7 @@ forktest(void)
   if(n == N){
     print("fork claimed to work N times!\n");
   62:	00000517          	auipc	a0,0x0
-  66:	4a650513          	addi	a0,a0,1190 # 508 <connect+0x5a>
+  66:	4ce50513          	addi	a0,a0,1230 # 530 <recvfrom+0x5e>
   6a:	00000097          	auipc	ra,0x0
   6e:	f96080e7          	jalr	-106(ra) # 0 <print>
     exit(1);
@@ -87,7 +87,7 @@ forktest(void)
     if(wait(0) < 0){
       print("wait stopped early\n");
   84:	00000517          	auipc	a0,0x0
-  88:	44450513          	addi	a0,a0,1092 # 4c8 <connect+0x1a>
+  88:	46c50513          	addi	a0,a0,1132 # 4f0 <recvfrom+0x1e>
   8c:	00000097          	auipc	ra,0x0
   90:	f74080e7          	jalr	-140(ra) # 0 <print>
       exit(1);
@@ -100,7 +100,7 @@ forktest(void)
   if(wait(0) != -1){
     print("wait got too many\n");
   9e:	00000517          	auipc	a0,0x0
-  a2:	44250513          	addi	a0,a0,1090 # 4e0 <connect+0x32>
+  a2:	46a50513          	addi	a0,a0,1130 # 508 <recvfrom+0x36>
   a6:	00000097          	auipc	ra,0x0
   aa:	f5a080e7          	jalr	-166(ra) # 0 <print>
     exit(1);
@@ -127,7 +127,7 @@ forktest(void)
 
   print("fork test OK\n");
   de:	00000517          	auipc	a0,0x0
-  e2:	41a50513          	addi	a0,a0,1050 # 4f8 <connect+0x4a>
+  e2:	44250513          	addi	a0,a0,1090 # 520 <recvfrom+0x4e>
   e6:	00000097          	auipc	ra,0x0
   ea:	f1a080e7          	jalr	-230(ra) # 0 <print>
 }
@@ -919,3 +919,43 @@ connect:
  4b0:	00000073          	ecall
  ret
  4b4:	8082                	ret
+
+00000000000004b6 <send>:
+.global send
+send:
+ li a7, SYS_send
+ 4b6:	48fd                	li	a7,31
+ ecall
+ 4b8:	00000073          	ecall
+ ret
+ 4bc:	8082                	ret
+
+00000000000004be <recv>:
+.global recv
+recv:
+ li a7, SYS_recv
+ 4be:	02000893          	li	a7,32
+ ecall
+ 4c2:	00000073          	ecall
+ ret
+ 4c6:	8082                	ret
+
+00000000000004c8 <sendto>:
+.global sendto
+sendto:
+ li a7, SYS_sendto
+ 4c8:	02100893          	li	a7,33
+ ecall
+ 4cc:	00000073          	ecall
+ ret
+ 4d0:	8082                	ret
+
+00000000000004d2 <recvfrom>:
+.global recvfrom
+recvfrom:
+ li a7, SYS_recvfrom
+ 4d2:	02200893          	li	a7,34
+ ecall
+ 4d6:	00000073          	ecall
+ ret
+ 4da:	8082                	ret

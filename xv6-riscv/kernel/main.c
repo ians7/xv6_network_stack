@@ -32,10 +32,8 @@ main()
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
     virtio_net_init(); // emulated NIC driver 
-    net_init();
-    socket_init();
-    userinit();      // first user process
     __sync_synchronize();
+    userinit();      // first user process
     started = 1;
   } else {
     while(started == 0)
@@ -45,6 +43,8 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
+    net_init();
+    socket_init();
   }
 
   scheduler();        

@@ -21,7 +21,7 @@ sudo ip link set enp6s0 up
 sudo ip link set tap0 up
 
 # Assign a static IP to the bridge (must match your LAN subnet!)
-sudo ip addr add 192.168.254.42/24 dev br0
+sudo ip addr add 192.168.254.60/24 dev br0
 
 # Set the default route
 sudo ip route add default via 192.168.254.1

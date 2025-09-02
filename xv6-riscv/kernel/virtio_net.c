@@ -1,4 +1,3 @@
-#include "sys/net.h"
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
@@ -6,7 +5,10 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "virtio.h"
-#include "sys/socket.h"
+#include "sys/net.h"
+#include "sys/ip4.h"
+#include "sys/arp.h"
+#include "sys/eth.h"
 
 // address of the virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
@@ -22,6 +24,13 @@
 
 #define HDR_SIZE sizeof(struct virtio_net_hdr)
 
+#define DEFAULT_SEQ_NUM 1337 // I don't currently have a way of generating a random number
+#define DEFAULT_WINDOW 1024
+
+extern struct port_binding *port_binds[512];
+
+uint virtq_avail = NUM;
+
 uint8 *packet_buf;
 
 struct virtio_net_hdr {
@@ -33,63 +42,7 @@ struct virtio_net_hdr {
   uint16 csum_offset;
 };
 
-struct tcp_packet {
-  uint16 src_port;
-  uint16 dst_port;
-  uint32 seq_num;
-  uint32 ack_num;
-  uint8 data_offset;
-  uint8 flags;
-  uint16 window;
-  uint16 csum;
-  uint16 urgent_ptr;
-
-  uint8 *payload;
-  int payload_len;
-};
-
-struct udp_packet {
-  uint16 src_port;
-  uint16 dst_port; 
-  uint16 len;
-  uint16 csum;
-  uint8 *payload;
-  int payload_len;
-};
-
-struct ip_packet {
-  uint8 ver_ihl; // upper 4 vits version, lower 4 bits IHL
-  uint8 tos; 
-  uint16 total_len; 
-
-  uint16 identification; 
-  uint16 fragment_info; // 3 bits flags, 13 bits fragment offset
-
-  uint8 ttl; 
-  uint8 protocol; 
-  uint16 hdr_csum; 
-
-  uint32 src_ip; 
-  uint32 dst_ip;
-
-  uint8 *payload;
-  uint16 payload_len;
-};
-
-struct eth_hdr {
-  uint8 dst_addr[6];
-  uint8 src_addr[6];
-  uint16 type;
-} __attribute__((packed));
-
-struct eth_frame {
-  struct eth_hdr *hdr;
-  uint8 *payload;
-  uint8 payload_len;
-};
-
 struct virtio_net net;
-extern struct virtio_net net;
 
 /*
  * This function takes a virtqueue for which a descriptor needs to be allocated
@@ -102,7 +55,9 @@ extern struct virtio_net net;
  *         returns -1 if there are no free descriptors
  *
  */
-int alloc_desc(struct virtq *q) {
+int 
+alloc_desc(struct virtq *q) 
+{
   for (int i = 0; i < NUM; i++) {
     if (q->free[i]) {
       q->free[i] = 0;
@@ -123,7 +78,9 @@ int alloc_desc(struct virtq *q) {
  * Output: None
  *
  */
-void free_desc(struct virtq *q, int i) {
+void 
+free_desc(struct virtq *q, int i) 
+{
   if (i >= NUM)
     panic("free_desc 1");
   if (q->free[i])
@@ -143,7 +100,9 @@ void free_desc(struct virtq *q, int i) {
  * a minimal netowrk driver, I only negotiate VIRTIO_NET_F_MAC
  *
  */
-void virtio_net_init(void) {
+void 
+virtio_net_init(void) 
+{
   uint32 status = 0;
   initlock(&net.vnet_lock, "virtio_net");
 
@@ -297,7 +256,9 @@ void virtio_net_init(void) {
  *      return 0 on success
  *      return 1 when the number of bytes calculated does not make sense
  */
-int apply_padding(uint8 num_bytes) {
+int 
+apply_padding(uint8 num_bytes)
+{
   uint8 *pkt_ptr =
       packet_buf + sizeof(struct virtio_net_hdr) + (64 - num_bytes);
   if (num_bytes > 64 - sizeof(struct virtio_net_hdr) || num_bytes < 1) {
@@ -324,8 +285,11 @@ int apply_padding(uint8 num_bytes) {
  * Output: There is no return value from the function, but the packet frame
  *         is given to the NIC to be transmitted.
  */
-void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
+void 
+transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
+{
   /* Create the header for transmission */
+
   acquire(&net.vnet_lock);
   *R(VIRTIO_MMIO_QUEUE_SEL) = QUEUE_TX;
   // allocate for packet header and packet_frame
@@ -337,18 +301,17 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
 
   int hdr_desc = alloc_desc(&net.txq);
   int pkt_desc = alloc_desc(&net.txq);
+  if (hdr_desc ==  -1 || pkt_desc == -1) {
+    release(&net.vnet_lock);
+    return;
+  }
 
   hdr->flags = 0;
   hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
   hdr->hdr_len = 0;
 
-  memmove(packet_buf, "\xe2\x71\xad\xf4\x7b\xff", 6);
-  memmove(packet_buf + 6, net.cfg.mac, 6);
-
-  packet_buf[12] = (protocol >> 8);
-  packet_buf[13] = (protocol & 0xF);
-
-  memmove(packet_buf + 14, pkt_data, pkt_len);
+  // populate the packet buffer
+  memmove(packet_buf, pkt_data, pkt_len);
 
   net.txq.desc[hdr_desc].flags |=
       VRING_DESC_F_NEXT; // This tells the device it's a chain
@@ -360,12 +323,12 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
   net.txq.desc[pkt_desc].addr = (uint64)packet_buf;
   net.txq.desc[pkt_desc].flags = 0;
 
-  if (pkt_len < 64) {
-    int res = apply_padding(64 - pkt_len);
-    net.txq.desc[pkt_desc].len = 64;
-    if (res != 0)
-      panic("failed to apply padding");
-  }
+  // if (pkt_len < 64) {
+  //   int res = apply_padding(64 - pkt_len);
+  //   net.txq.desc[pkt_desc].len = 64;
+  //   if (res != 0)
+  //     panic("failed to apply padding");
+  // }
 
   // Tell the device first index in chain of descriptors
   net.txq.driver_area->ring[net.txq.driver_area->idx % NUM] = hdr_desc;
@@ -383,232 +346,66 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
   while (net.txq.device_area->idx == prev_used_idx) {
     __sync_synchronize();
   }
-  printf("mac: %x:%x:%x:%x:%x:%x\n", net.cfg.mac[0], net.cfg.mac[1],
-         net.cfg.mac[2], net.cfg.mac[3], net.cfg.mac[4], net.cfg.mac[5]);
 }
 
-void print_ip_packet(struct ip_packet *ip) {
-  printf("\n");
-  printf("IPv%d packet from %d.%d.%d.%d to %d.%d.%d.%d",
-      ip->ver_ihl >> 4,
-      (ip->src_ip >> 24) & 0xFF, (ip->src_ip >> 16) & 0xFF,
-      (ip->src_ip >> 8) & 0xFF,  ip->src_ip & 0xFF,
-      (ip->dst_ip >> 24) & 0xFF, (ip->dst_ip >> 16) & 0xFF,
-      (ip->dst_ip >> 8) & 0xFF,  ip->dst_ip & 0xFF);
-  switch(ip->protocol) {
-    case(IPPROTO_TCP):
-      printf(", proto TCP");
-      break;
-    case(IPPROTO_UDP):
-      printf(", proto UDP");
-      break;
-    default:
-      printf("unsupported protocol\n");
-      break;
-  }
-  printf(", payload %d bytes\n", ip->payload_len);
-  printf("\n");
-}
-
-int parse_ip_packet(uint8 *buf, int len, struct ip_packet *pkt) {
-  printf("\tparsing ip packet\n");
-
-  pkt->ver_ihl = buf[0];
-  pkt->tos = buf[1];
-  pkt->total_len = ntohs(*(uint16 *)(buf + 2));
-  pkt->identification = ntohs(*(uint16 *)(buf + 4));
-  pkt->fragment_info = ntohs(*(uint16 *)(buf + 6));
-  pkt->ttl = buf[8];
-  pkt->protocol = buf[9];
-  pkt->hdr_csum = ntohs(*(uint16 *)(buf + 10));
-  pkt->src_ip = ntohl(*(uint32 *)(buf + 12));
-  pkt->dst_ip = ntohl(*(uint32 *)(buf + 16));
-  
-  pkt->ver_ihl = buf[0];
-  pkt->tos = buf[1];
-  pkt->total_len = ntohs(*(uint16 *)(buf + 2));
-  pkt->identification = ntohs(*(uint16 *)(buf + 4));
-  pkt->fragment_info = ntohs(*(uint16 *)(buf + 6));
-  pkt->ttl = buf[8];
-  pkt->protocol = buf[9];
-  pkt->hdr_csum = ntohs(*(uint16 *)(buf + 10));
-  pkt->src_ip = ntohl(*(uint32 *)(buf + 12));
-  pkt->dst_ip = ntohl(*(uint32 *)(buf + 16));
-
-  int hdr_len = (pkt->ver_ihl & 0x0F) * 4;
-  if (hdr_len < 20 || hdr_len > len) return -1;
-  printf("\tvalid packet\n");
-
-  if (pkt->total_len > len) return -1;
-
-  pkt->payload = buf + hdr_len;
-  pkt->payload_len = pkt->total_len - hdr_len;
-
-  return 0;
-}
-
-void print_eth_frame(struct eth_frame *frame) {
-  printf("\n");
-  printf("dst_addr: %x:%x:%x:%x:%x:%x\n", frame->hdr->dst_addr[0],
-                                          frame->hdr->dst_addr[1],
-                                          frame->hdr->dst_addr[2],
-                                          frame->hdr->dst_addr[3],
-                                          frame->hdr->dst_addr[4],
-                                          frame->hdr->dst_addr[5]);
-  printf("src_addr: %x:%x:%x:%x:%x:%x\n", frame->hdr->src_addr[0],
-                                          frame->hdr->src_addr[1],
-                                          frame->hdr->src_addr[2],
-                                          frame->hdr->src_addr[3],
-                                          frame->hdr->src_addr[4],
-                                          frame->hdr->src_addr[5]);
-
-  switch(ntohs(frame->hdr->type)) {
-    case(0x0800):
-      printf("type: IPv4\n");
-      break;
-    case(0x0806):
-      printf("type: ARP\n");
-      break;
-    case(0x08DD):
-      printf("type: IPv6\n");
-      break;
-  }
-
-  printf("payload_len: %d\n", frame->payload_len);
-  printf("payload :\n\t");
-  for (int i = 0; i < frame->payload_len; i++) {
-    printf("%x", frame->payload[i]);
-    if (i > 0 && i % 40 == 0)
-      printf("\n\t");
-  }
-  printf("\n");
-}
-
-int parse_eth_packet(uint8 *buf, int len, struct eth_frame *eth_frame) {
-  eth_frame->hdr = (struct eth_hdr *)buf;
-  eth_frame->payload = buf + sizeof(struct eth_hdr);
-  eth_frame->payload_len = len - sizeof(struct eth_frame);
-  return 0;
-}
-
-int handle_tcp_packet(struct tcp_packet *tcp_pkt) {
-  printf("TCP packet: src_port=%d dst_port=%d seq=%d ack=%d\n",
-      tcp_pkt->src_port, tcp_pkt->dst_port, tcp_pkt->seq_num, tcp_pkt->ack_num);
-  return 0;
-}
-
-int handle_udp_packet(struct udp_packet *udp_pkt) {
-  printf("\tUDP packet: src_port=%d dst_port=%d seq=%d ack=%d\n",
-      udp_pkt->src_port, udp_pkt->dst_port, udp_pkt->len, udp_pkt->csum);
-  return 0;
-}
-
-int parse_udp_packet(uint8 *buf, int len, struct udp_packet *udp_pkt) {
-  if (len < 8) return -1;  // too short for UDP header
-
-  udp_pkt->src_port = ntohs(*(uint16 *)(buf));
-  udp_pkt->dst_port = ntohs(*(uint16 *)(buf + 2));
-  udp_pkt->len      = ntohs(*(uint16 *)(buf + 4));
-  udp_pkt->csum     = ntohs(*(uint16 *)(buf + 6));
-
-  if (udp_pkt->len < 8 || udp_pkt->len > len)
-      return -1;  // malformed length
-
-  udp_pkt->payload = buf + 8;
-  udp_pkt->payload_len = udp_pkt->len - 8;
-
-  return 0;
-}
-
-int parse_tcp_packet(uint8 *buf, int len, struct tcp_packet *tcp_pkt) {
-  if (len < 20) return -1; // minimum TCP header
-
-  tcp_pkt->src_port = ntohs(*(uint16*)(buf));
-  tcp_pkt->dst_port = ntohs(*(uint16*)(buf+2));
-  tcp_pkt->seq_num  = ntohl(*(uint32*)(buf+4));
-  tcp_pkt->ack_num  = ntohl(*(uint32*)(buf+8));
-  tcp_pkt->data_offset = (buf[12] >> 4) & 0xF;
-  tcp_pkt->flags = buf[13];
-  tcp_pkt->window = ntohs(*(uint16*)(buf+14));
-  tcp_pkt->csum = ntohs(*(uint16*)(buf+16));
-  tcp_pkt->urgent_ptr = ntohs(*(uint16*)(buf+18));
-
-  int hdr_len = tcp_pkt->data_offset * 4;
-  if (hdr_len < 20 || hdr_len > len) return -1;
-
-  tcp_pkt->payload = buf + hdr_len;
-  tcp_pkt->payload_len = len - hdr_len;
-
-  return 0;
-}
-
-int handle_ip4_packet(struct ip_packet *ip_pkt) {
-  switch(ip_pkt->protocol) {
-    case IPPROTO_TCP:
-      struct tcp_packet *tcp = kalloc();
-      memset(tcp, 0, PGSIZE);
-      if (parse_tcp_packet(ip_pkt->payload, ip_pkt->payload_len, tcp) == 0) {
-        handle_tcp_packet(tcp);
-      }
-      kfree(tcp);
-      break;
-    case IPPROTO_UDP:
-      struct udp_packet *udp = kalloc();
-      memset(udp, 0, PGSIZE);
-      if (parse_udp_packet(ip_pkt->payload, ip_pkt->payload_len, udp) == 0) {
-        handle_udp_packet(udp);
-      }
-      kfree(udp);
-    default:
-      printf("unsupported ip protocol: %d\n", ip_pkt->protocol);
-      break;
-  }
-  return 0;
-}
-
-void handle_packet(uint8 *packet, uint len) {
-    printf("Interrupt: received packet of length %d\n", len - 10);
+void 
+handle_packet(uint8 *packet, uint len) 
+{
+    // printf("Interrupt: received packet of length %d\n", len - 10);
 
     struct eth_frame *eth_frame = kalloc();
-    struct ip_packet *ip_pkt = kalloc();
     memset(eth_frame, 0, PGSIZE);
-    memset(ip_pkt, 0, PGSIZE);
 
     if (parse_eth_packet(packet, len, eth_frame) == 0) {
-      switch(ntohs(eth_frame->hdr->type)) {
+      switch(ntohs(eth_frame->hdr.type)) {
         case PROTO_IPV4:
-          if (parse_ip_packet(eth_frame->payload, eth_frame->payload_len, ip_pkt) == 0) {
-            handle_ip4_packet(ip_pkt);
+          struct ip4_frame *ip4_pkt = kalloc();
+          memset(ip4_pkt, 0, PGSIZE);
+          if (parse_ip4_packet(eth_frame->payload, eth_frame->payload_len, ip4_pkt) == 0) {
+            handle_ip4_packet(ip4_pkt);
           } 
+          kfree(ip4_pkt);
           break;
         case PROTO_ARP:
-          printf("ARP packet\n");
+          arp_recv((struct arp_pkt *)eth_frame->payload);
           break;
         default:
-          printf("Unsupported ethertype %x\n", ntohs(eth_frame->hdr->type));
+          // printf("Unsupported ethertype %x\n", ntohs(eth_frame->hdr.type));
           break;
       }
     }
 
-    kfree(eth_frame);
-    kfree(ip_pkt);
+    // kfree(eth_frame);
 }
 
-uint16 receive_packet() {
+uint16 
+receive_packet() 
+{
   acquire(&net.vnet_lock);
   while (net.rxq.used_idx != net.rxq.device_area->idx) {
-    int id = net.rxq.device_area->ring[net.rxq.used_idx % NUM].id;
-    uint len = net.rxq.device_area->ring[net.rxq.used_idx % NUM].len;
+    struct virtq_used_elem *e =
+      &net.rxq.device_area->ring[net.rxq.used_idx % NUM];
+
+    int id = e->id;
+    int len = e->len - 10;
 
     uint8 *packet = (uint8 *)net.rxq.desc[net.rxq.desc[id].next].addr + 10;
 
+    release(&net.vnet_lock);
+
     handle_packet(packet, len);
 
-    // Requeue the buffer
+    acquire(&net.vnet_lock);
+    // Move forward (with wrap)
+    net.rxq.used_idx++;
+
+    // Requeue descriptor for future packets
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;
     __sync_synchronize();
     net.rxq.driver_area->idx++;
-    net.rxq.used_idx++;
+
+    // notify device if needed
+    // virtio_notify(&net.rxq);
   }
   release(&net.vnet_lock);
   return 0;
