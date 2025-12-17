@@ -2,9 +2,13 @@
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
-#include "spinlock.h"
 #include "memlayout.h"
+#include "spinlock.h"
 #include "virtio.h"
+#include "sys/net.h"
+#include "sys/ip4.h"
+#include "sys/arp.h"
+#include "sys/eth.h"
 
 // address of the virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
@@ -20,6 +24,13 @@
 
 #define HDR_SIZE sizeof(struct virtio_net_hdr)
 
+#define DEFAULT_SEQ_NUM 1337 // I don't currently have a way of generating a random number
+#define DEFAULT_WINDOW 1024
+
+extern struct port_binding *port_binds[512];
+
+uint virtq_avail = NUM;
+
 uint8 *packet_buf;
 
 struct virtio_net_hdr {
@@ -31,32 +42,7 @@ struct virtio_net_hdr {
   uint16 csum_offset;
 };
 
-struct virtq {
-  struct virtq_desc *desc;
-  struct virtq_avail *driver_area; // extra data from driver to device
-  struct virtq_used *device_area;  // extra data from device to driver
-  int num;
-  char free[NUM];
-  int used_idx;
-};
-
-struct virtio_net_config {
-  uint8 mac[6];
-  uint16 status;
-  uint16 max_virtqueue_pairs;
-  uint16 mtu;
-};
-
-// I want to hold the driver state separate from the device state,
-// virtio_net_config. This is because the driver has more data
-// that it needs to track than the device does, so I should
-// create a separate struct
-struct virtio_net {
-  struct virtio_net_config cfg;
-  struct spinlock vnet_lock;
-  struct virtq txq;
-  struct virtq rxq;
-} net;
+struct virtio_net net;
 
 /*
  * This function takes a virtqueue for which a descriptor needs to be allocated
@@ -69,7 +55,9 @@ struct virtio_net {
  *         returns -1 if there are no free descriptors
  *
  */
-int alloc_desc(struct virtq *q) {
+int 
+alloc_desc(struct virtq *q) 
+{
   for (int i = 0; i < NUM; i++) {
     if (q->free[i]) {
       q->free[i] = 0;
@@ -90,7 +78,9 @@ int alloc_desc(struct virtq *q) {
  * Output: None
  *
  */
-void free_desc(struct virtq *q, int i) {
+void 
+free_desc(struct virtq *q, int i) 
+{
   if (i >= NUM)
     panic("free_desc 1");
   if (q->free[i])
@@ -110,7 +100,9 @@ void free_desc(struct virtq *q, int i) {
  * a minimal netowrk driver, I only negotiate VIRTIO_NET_F_MAC
  *
  */
-void virtio_net_init(void) {
+void 
+virtio_net_init(void) 
+{
   uint32 status = 0;
   initlock(&net.vnet_lock, "virtio_net");
 
@@ -264,7 +256,9 @@ void virtio_net_init(void) {
  *      return 0 on success
  *      return 1 when the number of bytes calculated does not make sense
  */
-int apply_padding(uint8 num_bytes) {
+int 
+apply_padding(uint8 num_bytes)
+{
   uint8 *pkt_ptr =
       packet_buf + sizeof(struct virtio_net_hdr) + (64 - num_bytes);
   if (num_bytes > 64 - sizeof(struct virtio_net_hdr) || num_bytes < 1) {
@@ -291,8 +285,11 @@ int apply_padding(uint8 num_bytes) {
  * Output: There is no return value from the function, but the packet frame
  *         is given to the NIC to be transmitted.
  */
-void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
+void 
+transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
+{
   /* Create the header for transmission */
+
   acquire(&net.vnet_lock);
   *R(VIRTIO_MMIO_QUEUE_SEL) = QUEUE_TX;
   // allocate for packet header and packet_frame
@@ -304,18 +301,17 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
 
   int hdr_desc = alloc_desc(&net.txq);
   int pkt_desc = alloc_desc(&net.txq);
+  if (hdr_desc ==  -1 || pkt_desc == -1) {
+    release(&net.vnet_lock);
+    return;
+  }
 
   hdr->flags = 0;
   hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
   hdr->hdr_len = 0;
 
-  memmove(packet_buf, "\xe2\x71\xad\xf4\x7b\xff", 6);
-  memmove(packet_buf + 6, net.cfg.mac, 6);
-
-  packet_buf[12] = (protocol >> 8);
-  packet_buf[13] = (protocol & 0xF);
-
-  memmove(packet_buf + 14, pkt_data, pkt_len);
+  // populate the packet buffer
+  memmove(packet_buf, pkt_data, pkt_len);
 
   net.txq.desc[hdr_desc].flags |=
       VRING_DESC_F_NEXT; // This tells the device it's a chain
@@ -327,12 +323,12 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
   net.txq.desc[pkt_desc].addr = (uint64)packet_buf;
   net.txq.desc[pkt_desc].flags = 0;
 
-  if (pkt_len < 64) {
-    int res = apply_padding(64 - pkt_len);
-    net.txq.desc[pkt_desc].len = 64;
-    if (res != 0)
-      panic("failed to apply padding");
-  }
+  // if (pkt_len < 64) {
+  //   int res = apply_padding(64 - pkt_len);
+  //   net.txq.desc[pkt_desc].len = 64;
+  //   if (res != 0)
+  //     panic("failed to apply padding");
+  // }
 
   // Tell the device first index in chain of descriptors
   net.txq.driver_area->ring[net.txq.driver_area->idx % NUM] = hdr_desc;
@@ -350,29 +346,66 @@ void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol) {
   while (net.txq.device_area->idx == prev_used_idx) {
     __sync_synchronize();
   }
-  printf("mac: %x:%x:%x:%x:%x:%x\n", net.cfg.mac[0], net.cfg.mac[1],
-         net.cfg.mac[2], net.cfg.mac[3], net.cfg.mac[4], net.cfg.mac[5]);
 }
 
-uint16 receive_packet(void *pkt_buf, uint16 num_bytes) {
-  acquire(&net.vnet_lock);
-  while (net.rxq.used_idx != net.rxq.device_area->idx) {
-    int id = net.rxq.device_area->ring[net.rxq.used_idx % NUM].id;
-    uint len = net.rxq.device_area->ring[net.rxq.used_idx % NUM].len;
-
-    char *packet = (char *)net.rxq.desc[net.rxq.desc[id].next].addr;
-
+void 
+handle_packet(uint8 *packet, uint len) 
+{
     // printf("Interrupt: received packet of length %d\n", len - 10);
 
-    // for (int i = 0; i < len; i++) {
-    //   printf("%x", packet[i]);
-    // }
+    struct eth_frame *eth_frame = kalloc();
+    memset(eth_frame, 0, PGSIZE);
 
-    // Requeue the buffer
+    if (parse_eth_packet(packet, len, eth_frame) == 0) {
+      switch(ntohs(eth_frame->hdr.type)) {
+        case PROTO_IPV4:
+          struct ip4_frame *ip4_pkt = kalloc();
+          memset(ip4_pkt, 0, PGSIZE);
+          if (parse_ip4_packet(eth_frame->payload, eth_frame->payload_len, ip4_pkt) == 0) {
+            handle_ip4_packet(ip4_pkt);
+          } 
+          kfree(ip4_pkt);
+          break;
+        case PROTO_ARP:
+          arp_recv((struct arp_pkt *)eth_frame->payload);
+          break;
+        default:
+          // printf("Unsupported ethertype %x\n", ntohs(eth_frame->hdr.type));
+          break;
+      }
+    }
+
+    // kfree(eth_frame);
+}
+
+uint16 
+receive_packet() 
+{
+  acquire(&net.vnet_lock);
+  while (net.rxq.used_idx != net.rxq.device_area->idx) {
+    struct virtq_used_elem *e =
+      &net.rxq.device_area->ring[net.rxq.used_idx % NUM];
+
+    int id = e->id;
+    int len = e->len - 10;
+
+    uint8 *packet = (uint8 *)net.rxq.desc[net.rxq.desc[id].next].addr + 10;
+
+    release(&net.vnet_lock);
+
+    handle_packet(packet, len);
+
+    acquire(&net.vnet_lock);
+    // Move forward (with wrap)
+    net.rxq.used_idx++;
+
+    // Requeue descriptor for future packets
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;
     __sync_synchronize();
     net.rxq.driver_area->idx++;
-    net.rxq.used_idx++;
+
+    // notify device if needed
+    // virtio_notify(&net.rxq);
   }
   release(&net.vnet_lock);
   return 0;

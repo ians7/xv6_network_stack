@@ -9,6 +9,7 @@
 #include "fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
+#include "sys/socket.h"
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
@@ -73,13 +74,23 @@ fileclose(struct file *f)
   f->type = FD_NONE;
   release(&ftable.lock);
 
-  if(ff.type == FD_PIPE){
+  switch (ff.type) {
+  case FD_PIPE :
     pipeclose(ff.pipe, ff.writable);
-  } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
+    break;
+  case FD_INODE:
     begin_op();
     iput(ff.ip);
     end_op();
-  }
+    break;
+  case FD_DEVICE:
+    begin_op();
+    iput(ff.ip);
+    end_op();
+    break;
+  case FD_SOCKET:
+    f->sock->ops->close(f->sock);
+  };
 }
 
 // Get metadata about file f.

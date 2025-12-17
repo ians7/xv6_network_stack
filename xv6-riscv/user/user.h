@@ -1,3 +1,4 @@
+#include "../kernel/spinlock.h"
 #include "../kernel/sys/socket.h"
 
 struct stat;
@@ -29,14 +30,21 @@ int create_thread(void* (*fn_addr)(void *), void *args, void *stack_addr, void (
 int join_thread(int thread_id, int status_addr);
 int thread_exit(int status_addr);
 
-// socket.h
-int socket(int address_family, int address_socktype, int protocol);
-int bind(int socket, const struct sockaddr *address, socklen_t address_len);
-int listen(int socket, int backlog);
-int accept(int socket, struct sockaddr *address, socklen_t address_len);
-int connect(int socket, const struct sockaddr *address,
-            socklen_t address_len);
-
+// // socket.h
+// int socket(int address_family, int address_socktype, int protocol);
+// int bind(int socket, const struct sockaddr *address, socklen_t address_len);
+// int listen(int socket, int backlog);
+// int accept(int socket, struct sockaddr *address, socklen_t address_len);
+// int connect(int socket, const struct sockaddr *address,
+//             socklen_t address_len);
+//
+// int send(int socket, void *buf, uint length, int flags);
+// int recv(int socket, void *buf, uint length, int flags);
+// int sendto(int socket, const void *msg, uint length, int flags, 
+//     const struct sockaddr *dst_addr, socklen_t dst_len);
+// int recvfrom(int socket, void *buf, uint length, int flags,
+//     struct sockaddr *address, socklen_t address_len);
+//
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
@@ -61,3 +69,11 @@ int bind(int socket, const struct sockaddr *address, socklen_t address_len);
 int listen(int socket, int backlog);
 int connect(int socket, const struct sockaddr *address,
             socklen_t address_len);
+int close(int socket);
+
+int recv(int socket, void *buffer, int length, int flags);
+int recvfrom(int socket, void *buffer, int length,
+             int flags, const struct sockaddr *address, socklen_t *address_len);
+int send(int socket, const void *message, int length, int flags);
+int sendto(int socket, const void *message, int length, int flags,
+             const struct sockaddr *dest_addr, socklen_t dest_len);

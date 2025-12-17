@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct socket;
 
 // bio.c
 void            binit(void);
@@ -109,7 +110,7 @@ void            procdump(void);
 uint64          spoon(void*);
 int             create_thread(void* (*fn_addr)(void *), void *args, void *stack_addr, void (*exit_fn)(uint64));
 uint64          join_thread(uint64 thread_id, uint64 status_addr);
-uint64          thread_exit(uint64 status_addrr);
+uint64          thread_exit(uint64 status_addr);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -193,6 +194,15 @@ void            virtio_disk_intr(void);
 // virtio_net.c
 void            virtio_net_init(void);
 void            transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol);
+
+// sys/socket.c
+// int             send();
+// int             recv();
+// int             sendto();
+// int             recvfrom();
+
+int fdalloc(struct file *f);
+int initsocket(struct socket *sock, int sock_family, int sock_type, int proto);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

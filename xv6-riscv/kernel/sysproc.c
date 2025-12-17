@@ -1,11 +1,15 @@
 #include "types.h"
 #include "sys/types.h"
-#include "sys/socket.h"
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
+#include "sys/net.h"
+#include "sys/socket.h"
 #include "proc.h"
 
 uint64 sys_exit(void) {
@@ -102,15 +106,31 @@ uint64 sys_thread_exit(void *arg) {
   return thread_exit(status_addr);
 }
 
-uint64 sys_bind(void *arg) {
-  uint64 address_family, protocol;
-  struct sockaddr address;
-  argaddr(0, &address_family);
-  argaddr(1, (uint64 *)&address);
-  argaddr(2, &protocol);
-  return bind(address_family, &address, protocol);
-}
+uint64 sys_bind(void) {
+    int fd;
+    uint64 uaddr;
+    int addrlen;
 
+    argint(0, &fd);
+    argaddr(1, &uaddr);
+    argint(2, &addrlen);
+
+    struct file *f = myproc()->ofile[fd];
+    if (f == 0 || f->type != FD_SOCKET)
+        return -1;
+
+    struct socket *sock = f->sock;
+
+    struct sockaddr_in addr;
+    if (addrlen > sizeof(addr))
+        return -1;
+
+    // Copy user memory → kernel struct
+    if (copyin(myproc()->pagetable, (char*)&addr, uaddr, addrlen) < 0)
+        return -1;
+
+    return sock->ops->bind(sock, (struct sockaddr*)&addr, addrlen);
+}
 uint64 sys_listen(void *arg) {
   uint64 socket, backlog;
   argaddr(0, &socket);
@@ -128,12 +148,39 @@ uint64 sys_accept(void *arg) {
   return accept(socket, &address, address_len);
 }
 
-uint64 sys_socket(void *arg) {
+uint64 sys_socket(void *arg) {;
   uint64 address_family, address_socktype, protocol;
   argaddr(0, &address_family);
   argaddr(1, &address_socktype);
   argaddr(2, &protocol);
-  return socket(address_family, address_socktype, protocol);
+
+  struct socket *sock = (struct socket *)kalloc();
+  if (sock == 0) {
+    printf("ERROR: kalloc\n");
+    return -1;
+  }
+  memset(sock, 0, PGSIZE);
+
+  initsocket(sock, address_family, address_socktype, protocol);
+
+  struct file *f = filealloc();
+  if (f == 0) {
+    kfree(sock);
+    return -1;
+  }
+
+  int fd = fdalloc(f);
+  if (fd < 0) {
+    fileclose(f);
+    kfree(sock);
+    return -1;
+  }
+
+  f->type = FD_SOCKET;
+  f->sock = sock;
+  sock->fd = fd;
+
+  return fd;
 }
 
 uint64 sys_connect(void *arg) {
@@ -143,4 +190,89 @@ uint64 sys_connect(void *arg) {
   argaddr(1, (uint64 *)&address);
   argaddr(2, &address_len);
   return connect(socket, &address, address_len);
+}
+
+uint64
+sys_send(void)
+{
+  int fd;
+  uint64 buf;   // user pointer
+  int len;
+  int flags;
+
+  argint(0, &fd);
+  argaddr(1, &buf);
+  argint(2, &len);
+  argint(3, &flags);
+
+  struct file *f = myproc()->ofile[fd];
+  if (f == 0 || f->type != FD_SOCKET)
+    return -1;
+
+  return send(fd, (uint64 *)buf, len, flags);
+}
+
+uint64 sys_recv(void *arg) {
+  int fd;
+  uint64 buf;
+  int len;
+  int flags;
+
+  argint(0, &fd);
+  argaddr(1, &buf);
+  argint(2, &len);
+  argint(3, &flags);
+
+  struct file *f = myproc()->ofile[fd];
+  if (f == 0 || f->type != FD_SOCKET)
+    return -1;
+
+  return recv(fd, (uint64 *)buf, len, flags);
+}
+
+uint64 sys_sendto(void) {
+  int fd;
+  uint64 buf;
+  int len;
+  int flags;
+  uint64 dest_addr;
+  int addrlen;
+
+  argint(0, &fd);
+  argaddr(1, &buf);
+  argint(2, &len);
+  argint(3, &flags);
+  argaddr(4, &dest_addr);
+  argint(5, &addrlen);
+
+  struct file *f = myproc()->ofile[fd];
+  if (f == 0 || f->type != FD_SOCKET)
+    return -1;
+
+  return sendto(fd, (uint64 *)buf, len, flags,
+                     (struct sockaddr *)dest_addr, addrlen);
+}
+
+uint64 sys_recvfrom(void *arg) {
+  int fd;
+  uint64 buf;
+  int len;
+  int flags;
+  uint64 src_addr;
+  uint64 addrlen;
+
+  argint(0, &fd);
+  argaddr(1, &buf);
+  argint(2, &len);
+  argint(3, &flags);
+  argaddr(4, &src_addr);
+  argaddr(5, &addrlen);
+
+  struct file *f = myproc()->ofile[fd];
+  if (f == 0 || f->type != FD_SOCKET)
+    return -1;
+
+  return recvfrom(fd, (uint64 *)buf, len, flags,
+                       (struct sockaddr *)src_addr,
+                       (socklen_t *)addrlen);
 }

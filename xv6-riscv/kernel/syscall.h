@@ -29,3 +29,7 @@
 #define SYS_listen 28
 #define SYS_accept 29
 #define SYS_connect 30
+#define SYS_send 31
+#define SYS_recv 32
+#define SYS_sendto 33
+#define SYS_recvfrom 34

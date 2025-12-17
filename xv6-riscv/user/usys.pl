@@ -45,3 +45,7 @@ entry("bind");
 entry("accept");
 entry("listen");
 entry("connect");
+entry("send");
+entry("recv");
+entry("sendto");
+entry("recvfrom");

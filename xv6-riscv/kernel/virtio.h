@@ -6,6 +6,7 @@
 // the virtio spec:
 // https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.pdf
 //
+
 #include "types.h"
 
 // virtio mmio control registers, mapped starting at 0x10001000.
@@ -119,6 +120,35 @@ struct virtio_blk_req {
   uint64 sector;
 };
 
+struct virtq {
+  struct virtq_desc *desc;
+  struct virtq_avail *driver_area; // extra data from driver to device
+  struct virtq_used *device_area;  // extra data from device to driver
+  int num;
+  char free[NUM];
+  int used_idx;
+};
+
+struct virtio_net_config {
+  uint8 mac[6];
+  uint16 status;
+  uint16 max_virtqueue_pairs;
+  uint16 mtu;
+};
+
+// I want to hold the driver state separate from the device state,
+// virtio_net_config. This is because the driver has more data
+// that it needs to track than the device does, so I should
+// create a separate struct
+struct virtio_net {
+  struct virtio_net_config cfg;
+  struct spinlock vnet_lock;
+  struct virtq txq;
+  struct virtq rxq;
+};
+
+extern struct virtio_net net;
+
 // virtio_net API
 void transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol);
-uint16 receive_packet(void *pkt_buf, uint16 num_bytes);
+uint16 receive_packet();

@@ -31,11 +31,18 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o \
   $K/virtio_net.o \
-  $K/sys/socket.o
+  $K/sys/ip4.o \
+  $K/sys/net.o \
+  $K/sys/socket.o \
+  $K/sys/eth.o \
+  $K/sys/tcp.o \
+  $K/sys/udp.o \
+  $K/sys/arp.o \
+  
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
-# TOOLPREFIX = 
+# TOOLPREFIX=riscv32-unknown-elf-
 
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
@@ -137,6 +144,9 @@ UPROGS=\
 	$U/_debug\
 	$U/_zombie\
 	$U/_xv6test\
+	$U/_net_test\
+	# $U/_launch_udp_server\
+
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
