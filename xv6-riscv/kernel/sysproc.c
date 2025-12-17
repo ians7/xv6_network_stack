@@ -148,7 +148,7 @@ uint64 sys_accept(void *arg) {
   return accept(socket, &address, address_len);
 }
 
-uint64 sys_socket(void *arg) {
+uint64 sys_socket(void *arg) {;
   uint64 address_family, address_socktype, protocol;
   argaddr(0, &address_family);
   argaddr(1, &address_socktype);
@@ -179,8 +179,6 @@ uint64 sys_socket(void *arg) {
   f->type = FD_SOCKET;
   f->sock = sock;
   sock->fd = fd;
-  // sock->rx_head = 0;
-  // sock->rx_tail = 0;
 
   return fd;
 }

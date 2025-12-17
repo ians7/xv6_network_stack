@@ -9,8 +9,11 @@ def udp_server(host="0.0.0.0", port=20000):
 
     try:
         while True:
+            print("waiting on data...")
             data, addr = sock.recvfrom(4096)  # buffer size = 4KB
+            print("Received data!")
             print(f"Received {len(data)} bytes from {addr}: {data.decode(errors='ignore')}")
+            print(data)
             # Optionally, send a reply back
             sock.sendto(b"ACK", addr)
     except KeyboardInterrupt:

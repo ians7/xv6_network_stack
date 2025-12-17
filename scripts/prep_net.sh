@@ -4,20 +4,20 @@
 sudo ip tuntap add dev tap0 mode tap
 
 # Bring interfaces down (safely)
-sudo ip link set enp6s0 down
+sudo ip link set wlp9s0 down
 sudo ip link set tap0 down
 sudo ip link set br0 down
 
 # Attach interfaces to bridge
-sudo ip link set enp6s0 master br0
+sudo ip link set wlp9s0 master br0
 sudo ip link set tap0 master br0
 
 # Flush old IPs from physical interface
-sudo ip addr flush dev enp6s0
+sudo ip addr flush dev wlp9s0
 
 # Bring interfaces up
 sudo ip link set br0 up
-sudo ip link set enp6s0 up
+sudo ip link set wlp9s0 up
 sudo ip link set tap0 up
 
 # Assign a static IP to the bridge (must match your LAN subnet!)

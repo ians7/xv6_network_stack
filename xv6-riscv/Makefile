@@ -145,7 +145,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_xv6test\
 	$U/_net_test\
-	$U/_launch_udp_server\
+	# $U/_launch_udp_server\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)

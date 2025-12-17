@@ -3,7 +3,7 @@ import time
 
 def send_udp_packet():
     # Target address and port
-    target_ip = "192.168.254.116"
+    target_ip = "192.168.254.137"
     target_port = 20000
     
     # Message to send
