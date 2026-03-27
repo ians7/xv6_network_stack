@@ -34,6 +34,8 @@ main()
     virtio_net_init(); // emulated NIC driver 
     __sync_synchronize();
     userinit();      // first user process
+    net_init();
+    socket_init();
     started = 1;
   } else {
     while(started == 0)
@@ -43,8 +45,6 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
-    net_init();
-    socket_init();
   }
 
   scheduler();        

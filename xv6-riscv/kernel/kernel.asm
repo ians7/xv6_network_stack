@@ -2209,16 +2209,16 @@ main()
   if(cpuid() == 0){
     80000fee:	00001097          	auipc	ra,0x1
     80000ff2:	e5c080e7          	jalr	-420(ra) # 80001e4a <cpuid>
-    virtio_net_init(); // emulated NIC driver 
-    __sync_synchronize();
     userinit();      // first user process
+    net_init();
+    socket_init();
     started = 1;
   } else {
     while(started == 0)
     80000ff6:	0000f717          	auipc	a4,0xf
     80000ffa:	d5270713          	addi	a4,a4,-686 # 8000fd48 <started>
   if(cpuid() == 0){
-    80000ffe:	c939                	beqz	a0,80001054 <main+0x6e>
+    80000ffe:	c139                	beqz	a0,80001044 <main+0x5e>
     while(started == 0)
     80001000:	431c                	lw	a5,0(a4)
     80001002:	2781                	sext.w	a5,a5
@@ -2243,87 +2243,87 @@ main()
     plicinithart();   // ask PLIC for device interrupts
     80001034:	00006097          	auipc	ra,0x6
     80001038:	cc2080e7          	jalr	-830(ra) # 80006cf6 <plicinithart>
-    net_init();
-    8000103c:	00007097          	auipc	ra,0x7
-    80001040:	12a080e7          	jalr	298(ra) # 80008166 <net_init>
-    socket_init();
-    80001044:	00008097          	auipc	ra,0x8
-    80001048:	8c2080e7          	jalr	-1854(ra) # 80008906 <socket_init>
   }
 
   scheduler();        
-    8000104c:	00001097          	auipc	ra,0x1
-    80001050:	534080e7          	jalr	1332(ra) # 80002580 <scheduler>
+    8000103c:	00001097          	auipc	ra,0x1
+    80001040:	544080e7          	jalr	1348(ra) # 80002580 <scheduler>
     consoleinit();
-    80001054:	fffff097          	auipc	ra,0xfffff
-    80001058:	420080e7          	jalr	1056(ra) # 80000474 <consoleinit>
+    80001044:	fffff097          	auipc	ra,0xfffff
+    80001048:	430080e7          	jalr	1072(ra) # 80000474 <consoleinit>
     printfinit();
-    8000105c:	fffff097          	auipc	ra,0xfffff
-    80001060:	756080e7          	jalr	1878(ra) # 800007b2 <printfinit>
+    8000104c:	fffff097          	auipc	ra,0xfffff
+    80001050:	766080e7          	jalr	1894(ra) # 800007b2 <printfinit>
     printf("\n");
+    80001054:	0000a517          	auipc	a0,0xa
+    80001058:	fcc50513          	addi	a0,a0,-52 # 8000b020 <etext+0x20>
+    8000105c:	fffff097          	auipc	ra,0xfffff
+    80001060:	54c080e7          	jalr	1356(ra) # 800005a8 <printf>
+    printf("xv6 kernel is booting\n");
     80001064:	0000a517          	auipc	a0,0xa
-    80001068:	fbc50513          	addi	a0,a0,-68 # 8000b020 <etext+0x20>
+    80001068:	02c50513          	addi	a0,a0,44 # 8000b090 <etext+0x90>
     8000106c:	fffff097          	auipc	ra,0xfffff
     80001070:	53c080e7          	jalr	1340(ra) # 800005a8 <printf>
-    printf("xv6 kernel is booting\n");
+    printf("\n");
     80001074:	0000a517          	auipc	a0,0xa
-    80001078:	01c50513          	addi	a0,a0,28 # 8000b090 <etext+0x90>
+    80001078:	fac50513          	addi	a0,a0,-84 # 8000b020 <etext+0x20>
     8000107c:	fffff097          	auipc	ra,0xfffff
     80001080:	52c080e7          	jalr	1324(ra) # 800005a8 <printf>
-    printf("\n");
-    80001084:	0000a517          	auipc	a0,0xa
-    80001088:	f9c50513          	addi	a0,a0,-100 # 8000b020 <etext+0x20>
-    8000108c:	fffff097          	auipc	ra,0xfffff
-    80001090:	51c080e7          	jalr	1308(ra) # 800005a8 <printf>
     kinit();         // physical page allocator
-    80001094:	00000097          	auipc	ra,0x0
-    80001098:	b42080e7          	jalr	-1214(ra) # 80000bd6 <kinit>
+    80001084:	00000097          	auipc	ra,0x0
+    80001088:	b52080e7          	jalr	-1198(ra) # 80000bd6 <kinit>
     kvminit();       // create kernel page table
-    8000109c:	00000097          	auipc	ra,0x0
-    800010a0:	340080e7          	jalr	832(ra) # 800013dc <kvminit>
+    8000108c:	00000097          	auipc	ra,0x0
+    80001090:	350080e7          	jalr	848(ra) # 800013dc <kvminit>
     kvminithart();   // turn on paging
-    800010a4:	00000097          	auipc	ra,0x0
-    800010a8:	070080e7          	jalr	112(ra) # 80001114 <kvminithart>
+    80001094:	00000097          	auipc	ra,0x0
+    80001098:	080080e7          	jalr	128(ra) # 80001114 <kvminithart>
     procinit();      // process table
-    800010ac:	00001097          	auipc	ra,0x1
-    800010b0:	ce2080e7          	jalr	-798(ra) # 80001d8e <procinit>
+    8000109c:	00001097          	auipc	ra,0x1
+    800010a0:	cf2080e7          	jalr	-782(ra) # 80001d8e <procinit>
     trapinit();      // trap vectors
-    800010b4:	00002097          	auipc	ra,0x2
-    800010b8:	f34080e7          	jalr	-204(ra) # 80002fe8 <trapinit>
+    800010a4:	00002097          	auipc	ra,0x2
+    800010a8:	f44080e7          	jalr	-188(ra) # 80002fe8 <trapinit>
     trapinithart();  // install kernel trap vector
-    800010bc:	00002097          	auipc	ra,0x2
-    800010c0:	f54080e7          	jalr	-172(ra) # 80003010 <trapinithart>
+    800010ac:	00002097          	auipc	ra,0x2
+    800010b0:	f64080e7          	jalr	-156(ra) # 80003010 <trapinithart>
     plicinit();      // set up interrupt controller
-    800010c4:	00006097          	auipc	ra,0x6
-    800010c8:	c16080e7          	jalr	-1002(ra) # 80006cda <plicinit>
+    800010b4:	00006097          	auipc	ra,0x6
+    800010b8:	c26080e7          	jalr	-986(ra) # 80006cda <plicinit>
     plicinithart();  // ask PLIC for device interrupts
-    800010cc:	00006097          	auipc	ra,0x6
-    800010d0:	c2a080e7          	jalr	-982(ra) # 80006cf6 <plicinithart>
+    800010bc:	00006097          	auipc	ra,0x6
+    800010c0:	c3a080e7          	jalr	-966(ra) # 80006cf6 <plicinithart>
     binit();         // buffer cache
-    800010d4:	00003097          	auipc	ra,0x3
-    800010d8:	c56080e7          	jalr	-938(ra) # 80003d2a <binit>
+    800010c4:	00003097          	auipc	ra,0x3
+    800010c8:	c66080e7          	jalr	-922(ra) # 80003d2a <binit>
     iinit();         // inode table
-    800010dc:	00003097          	auipc	ra,0x3
-    800010e0:	2d6080e7          	jalr	726(ra) # 800043b2 <iinit>
+    800010cc:	00003097          	auipc	ra,0x3
+    800010d0:	2e6080e7          	jalr	742(ra) # 800043b2 <iinit>
     fileinit();      // file table
-    800010e4:	00004097          	auipc	ra,0x4
-    800010e8:	2c0080e7          	jalr	704(ra) # 800053a4 <fileinit>
+    800010d4:	00004097          	auipc	ra,0x4
+    800010d8:	2d0080e7          	jalr	720(ra) # 800053a4 <fileinit>
     virtio_disk_init(); // emulated hard disk
-    800010ec:	00006097          	auipc	ra,0x6
-    800010f0:	d12080e7          	jalr	-750(ra) # 80006dfe <virtio_disk_init>
+    800010dc:	00006097          	auipc	ra,0x6
+    800010e0:	d22080e7          	jalr	-734(ra) # 80006dfe <virtio_disk_init>
     virtio_net_init(); // emulated NIC driver 
-    800010f4:	00006097          	auipc	ra,0x6
-    800010f8:	286080e7          	jalr	646(ra) # 8000737a <virtio_net_init>
+    800010e4:	00006097          	auipc	ra,0x6
+    800010e8:	296080e7          	jalr	662(ra) # 8000737a <virtio_net_init>
     __sync_synchronize();
-    800010fc:	0330000f          	fence	rw,rw
+    800010ec:	0330000f          	fence	rw,rw
     userinit();      // first user process
-    80001100:	00001097          	auipc	ra,0x1
-    80001104:	06a080e7          	jalr	106(ra) # 8000216a <userinit>
+    800010f0:	00001097          	auipc	ra,0x1
+    800010f4:	07a080e7          	jalr	122(ra) # 8000216a <userinit>
+    net_init();
+    800010f8:	00007097          	auipc	ra,0x7
+    800010fc:	06e080e7          	jalr	110(ra) # 80008166 <net_init>
+    socket_init();
+    80001100:	00008097          	auipc	ra,0x8
+    80001104:	806080e7          	jalr	-2042(ra) # 80008906 <socket_init>
     started = 1;
     80001108:	4785                	li	a5,1
     8000110a:	0000f717          	auipc	a4,0xf
     8000110e:	c2f72f23          	sw	a5,-962(a4) # 8000fd48 <started>
-    80001112:	bf2d                	j	8000104c <main+0x66>
+    80001112:	b72d                	j	8000103c <main+0x56>
 
 0000000080001114 <kvminithart>:
 
