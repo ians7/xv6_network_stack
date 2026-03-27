@@ -1,0 +1,64 @@
+name: xv6_network
+
+services:
+    server_host:
+        build: .
+        container_name: server
+        hostname: server
+        tty: true
+        working_dir: /app/
+        cap_add:
+            - ALL
+        devices:
+            - /dev/net/tun:/dev/net/tun
+        volumes:
+            - ./:/volumes
+        sysctls:
+            - net.ipv4.ip_forward=0
+        networks:
+            local-net:
+                ipv4_address: 10.10.0.2
+        command: >
+            bash -c "
+            groupadd -g ${GID} xv6 &&
+            useradd -m -u ${UID} -g xv6 -s /bin/bash sawyer-inc &&
+            echo 'sawyer-inc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers &&
+            [ -f /volumes/check_config.sh ] && bash /volumes/check_config.sh || true &&
+            [ -f /volumes/vimrc ] && cp /volumes/vimrc /home/sawyer-inc/.vimrc || true &&
+            tail -f /dev/null
+            "
+
+    client_host:
+        build: .
+        container_name: client
+        hostname: client
+        tty: true
+        working_dir: /app/
+        cap_add:
+            - ALL
+        devices:
+            - /dev/net/tun:/dev/net/tun
+        volumes:
+            - ./:/volumes
+        sysctls:
+            - net.ipv4.ip_forward=0
+        networks:
+            local-net:
+                ipv4_address: 10.10.0.3
+        command: >
+            bash -c "
+            groupadd -g ${GID} xv6 &&
+            useradd -m -u ${UID} -g xv6 -s /bin/bash sawyer-inc &&
+            echo 'sawyer-inc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers &&
+            [ -f /volumes/check_config.sh ] && bash /volumes/check_config.sh || true &&
+            [ -f /volumes/vimrc ] && cp /volumes/vimrc /home/sawyer-inc/.vimrc || true &&
+            tail -f /dev/null
+            "
+
+
+networks:
+  local-net:
+    name: local-net
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
