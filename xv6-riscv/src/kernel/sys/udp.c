@@ -128,7 +128,7 @@ udp_close(struct socket *sock)
 }
 
 int 
-udp_sendto(struct socket *sock, const void *buf, int len, int flags, 
+udp_sendto(struct socket *sock, const char *buf, int len, int flags, 
     const struct sockaddr *dest, socklen_t addrlen)
 {
   struct sockaddr_in kaddr;
@@ -146,19 +146,18 @@ udp_sendto(struct socket *sock, const void *buf, int len, int flags,
     }
   }
 
+  char kbuf[1500];
+  if (len > 1500) return -1;
+  if (copyin(myproc()->pagetable, kbuf, (uint64)buf, len) < 0)
+    return -1;
+
   struct eth_frame *eth = kalloc();
   struct ip4_frame *ip = (struct ip4_frame *)eth->payload;
   struct udp_frame *udp = (struct udp_frame *)ip->payload;
 
-  build_udp(udp, sock->src_port, ((struct sockaddr_in *)&kaddr)->sin_port, (uint8 *)&buf, len, netconf.ip_addr, dst_ip);
+  build_udp(udp, sock->src_port, ((struct sockaddr_in *)&kaddr)->sin_port, (uint8 *)kbuf, len, netconf.ip_addr, dst_ip);
   build_ip4(ip, ntohl(netconf.ip_addr), ntohl(dst_ip), IPPROTO_UDP, len + sizeof(struct udp_hdr) + sizeof(struct ip4_hdr));
   build_eth(eth, dst_mac, netconf.mac_addr, PROTO_IPV4);
-
-  char buf2[1024];
-  
-  memmove(buf2, udp->payload, udp->payload_len);
-  buf2[udp->payload_len] = '\0';
-  printf("%s\n", buf2);
 
   transmit_packet(eth, len + sizeof(struct udp_hdr) + sizeof(struct ip4_hdr) + sizeof(struct eth_hdr), PROTO_IPV4);
   kfree(eth);
@@ -170,7 +169,7 @@ udp_sendto(struct socket *sock, const void *buf, int len, int flags,
 }
 
 int 
-udp_recvfrom(struct socket *sock, void *buf, int len, int flags,
+udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
     const struct sockaddr *src, socklen_t *addrlen)
 {
   struct udp_frame *pkt = 0;
@@ -179,7 +178,7 @@ udp_recvfrom(struct socket *sock, void *buf, int len, int flags,
     sleep(&sock->rx_head, &sock->lock);
   }
   printf("received a packet!\n");
-  pkt = (struct udp_frame *)dequeue_udp_packet(sock);
+  pkt = dequeue_udp_packet(sock);
 
   int payload_len = len - sizeof(struct udp_hdr);
   release(&sock->lock);
