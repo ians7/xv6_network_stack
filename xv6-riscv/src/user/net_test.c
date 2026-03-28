@@ -9,11 +9,13 @@
 #define CLITEST_SERVER_PORT 20000
 #define CLITEST_CLIENT_PORT 78
 
-#define CLITEST_SERVER_ADDR 0x0a0a0003
+#define CLITEST_SERVER_ADDR "10.10.0.3"
 
 void udp_cli(void) {
   int sockfd;
-  char *msg = "hello over udp";
+  int msglen = strlen("hello over udp");
+  char *msg = malloc(msglen);
+  memmove(msg, "hello over udp", strlen("hello over udp"));
   struct sockaddr_in server_addr, client_addr;
   char buf[64];
 
@@ -22,7 +24,7 @@ void udp_cli(void) {
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(CLITEST_SERVER_PORT);
-  server_addr.sin_addr.s_addr = htonl(CLITEST_SERVER_ADDR);
+  server_addr.sin_addr.s_addr = htonl(inet_addr(CLITEST_SERVER_ADDR));
 
   /* --- Create client socket --- */
   sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -44,7 +46,7 @@ void udp_cli(void) {
 
   /* --- Client sends message to server --- */
   printf("sending payload\n");
-  if (sendto(sockfd, &msg, strlen(msg), 0, (struct sockaddr *)&server_addr,
+  if (sendto(sockfd, msg, msglen, 0, (struct sockaddr *)&server_addr,
              sizeof(server_addr)) < 0) {
     printf("sendto failed\n");
     exit(1);
