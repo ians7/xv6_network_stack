@@ -82,6 +82,23 @@ gets(char *buf, int max)
 }
 
 int
+fgetstdin(char *buf, int size) {
+  int i, cc;
+  char c;
+
+  for(i=0; i+1 < size; ){
+    cc = read(0, &c, 1);
+    if(cc < 1)
+      break;
+    buf[i++] = c;
+    if(c == '\n' || c == '\r')
+      break;
+  }
+  buf[i] = '\0';
+  return i;
+}
+
+int
 stat(const char *n, struct stat *st)
 {
   int fd;
@@ -144,4 +161,39 @@ void *
 memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
+}
+
+// Parse a dotted-decimal IPv4 string (e.g. "10.10.0.2") and return the
+// address as a 32-bit integer in host byte order, or 0 on failure.
+uint
+inet_addr(const char *s)
+{
+  uint result = 0;
+  int octet = 0;
+  int digits = 0;
+  int dots = 0;
+
+  for (; *s; s++) {
+    if (*s >= '0' && *s <= '9') {
+      octet = octet * 10 + (*s - '0');
+      digits++;
+      if (octet > 255)
+        return 0;
+    } else if (*s == '.') {
+      if (digits == 0 || dots == 3)
+        return 0;
+      result = (result << 8) | (uint)octet;
+      octet = 0;
+      digits = 0;
+      dots++;
+    } else {
+      return 0;
+    }
+  }
+
+  if (digits == 0 || dots != 3)
+    return 0;
+
+  result = (result << 8) | (uint)octet;
+  return result;
 }
