@@ -64,7 +64,7 @@ arp_request(uint32 target_ip)
   arp->tpa = target_ip;
   memmove(arp->sha, netconf.mac_addr, 6);
   memmove(arp->tha, dst_mac, 6);
-  printf("arp_request: sending arp request!\n");
+  // printf("arp_request: sending arp request!\n");
   transmit_packet(frame, ARP_PACKET_SIZE, PROTO_ARP);
   kfree(frame);
 }

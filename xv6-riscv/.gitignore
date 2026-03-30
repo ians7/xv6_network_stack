@@ -1,0 +1,41 @@
+# Build outputs
+*.o
+*.d
+*.asm
+*.sym
+
+# Kernel binaries
+src/kernel/kernel
+src/kernel/kernel-server
+src/kernel/kernel-client
+
+# User binaries (underscore-prefixed)
+src/user/_*
+
+# Generated assembly stubs
+src/user/usys.S
+
+# Initcode intermediates
+src/user/initcode
+src/user/initcode.out
+
+# Filesystem images
+*.img
+
+# mkfs tool
+src/mkfs/mkfs
+
+# QEMU logs
+qemu.log
+qemu-server.log
+qemu-client.log
+
+# GDB init
+.gdbinit
+
+# pcap captures
+pcap_data/
+
+# Python cache
+__pycache__/
+*.pyc

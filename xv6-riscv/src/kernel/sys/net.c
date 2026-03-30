@@ -23,10 +23,12 @@ struct DNS_question {
   uint16 q_class;
 };
 
-const int temp_ip = 0x0a000a0a;
+#ifndef VM_IP
+#define VM_IP 0x0a000a0a
+#endif
 
 struct net_state netconf = {
-  .ip_addr = temp_ip,
+  .ip_addr = VM_IP,
   .gateway = 0,
   .subnet_mask = 0,
 };
@@ -106,7 +108,7 @@ int net_init() {
   for (int i = 0; i < 6; i++) {
     netconf.mac_addr[i] = net.cfg.mac[i];
   }
-  arp_insert(temp_ip, netconf.mac_addr);
+  arp_insert(netconf.ip_addr, netconf.mac_addr);
   return 0;
 }
 
