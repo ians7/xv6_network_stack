@@ -177,7 +177,7 @@ udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
   while (!sock->rx_head) {
     sleep(&sock->rx_head, &sock->lock);
   }
-  printf("received a packet!\n");
+  // printf("received a packet!\n");
   pkt = dequeue_udp_packet(sock);
 
   int payload_len = len - sizeof(struct udp_hdr);
@@ -203,8 +203,8 @@ udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
 int 
 handle_udp_packet(struct udp_frame *udp_pkt) 
 {
-  printf("\tUDP packet: src_port=%d dst_port=%d len=%d csum=%d\n",
-      udp_pkt->hdr.src_port, udp_pkt->hdr.dst_port, udp_pkt->hdr.len, udp_pkt->hdr.csum);
+  // printf("\tUDP packet: src_port=%d dst_port=%d len=%d csum=%d\n",
+      // udp_pkt->hdr.src_port, udp_pkt->hdr.dst_port, udp_pkt->hdr.len, udp_pkt->hdr.csum);
 
   // validate the port number
   if (udp_pkt->hdr.dst_port < 0 || udp_pkt->hdr.dst_port >= MAX_PORT_BINDINGS) 
@@ -218,7 +218,7 @@ handle_udp_packet(struct udp_frame *udp_pkt)
 
   struct socket *sock = udp_port_binds[udp_pkt->hdr.dst_port]->sock;
   if (sock->proto == IPPROTO_UDP) {
-    printf("enqeueing packet\n");
+    // printf("enqeueing packet\n");
     enqueue_udp_packet(udp_pkt, sock);
   }
   return 0;
