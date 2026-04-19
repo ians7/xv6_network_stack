@@ -19,9 +19,9 @@ struct udp_frame {
   struct udp_frame *next;
 };
 
-int udp_sendto(struct socket *sock, const char *msg, int len, int flags,
+int udp_sendto(struct socket *sock, const void *msg, int len, int flags,
     const struct sockaddr *to, socklen_t dest_len);
-int udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
+int udp_recvfrom(struct socket *sock, void *buf, int len, int flags,
     const struct sockaddr *from, socklen_t *src_len);
 
 int udp_bind(struct socket *sock, const struct sockaddr *address, socklen_t address_len);

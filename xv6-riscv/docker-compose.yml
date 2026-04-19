@@ -1,10 +1,10 @@
 name: xv6_network
 
 services:
-    server_host:
+    host1:
         build: .
-        container_name: server
-        hostname: server
+        container_name: hostA
+        hostname: hostA
         tty: true
         working_dir: /app/
         cap_add:
@@ -28,10 +28,10 @@ services:
             tail -f /dev/null
             "
 
-    client_host:
+    host2:
         build: .
-        container_name: client
-        hostname: client
+        container_name: hostB
+        hostname: hostB
         tty: true
         working_dir: /app/
         cap_add:

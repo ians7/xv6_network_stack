@@ -212,7 +212,7 @@ uvmcreate()
 }
 
 // Load the user initcode into address 0 of pagetable,
-// for the very first process.
+// for the very first process .
 // sz must be less than a page.
 void
 uvmfirst(pagetable_t pagetable, uchar *src, uint sz)
@@ -369,7 +369,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 }
 
 // Given a parent process's page table, copy
-// its memory into a child's page table.
+// its memory into a child's Page table.
 // Copies both the page table and the
 // physical memory.
 // returns 0 on success, -1 on failure.
