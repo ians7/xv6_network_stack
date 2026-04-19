@@ -15,6 +15,8 @@
 #include "socket.h"
 #include "udp.h"
 
+extern struct spinlock port_binds_lock;
+
 void
 build_udp(struct udp_frame *udp, uint16 src_port, uint16 dst_port, uint8 *payload, int payload_len, uint32 src_ip, uint32 dst_ip)
 {
@@ -28,17 +30,19 @@ build_udp(struct udp_frame *udp, uint16 src_port, uint16 dst_port, uint8 *payloa
 }
 
 void
-enqueue_udp_packet(struct udp_frame *pkt, struct socket *sock) 
+enqueue_udp_packet(struct udp_frame *pkt, struct socket *sock)
 {
+  acquire(&sock->lock);
+  pkt->next = 0;
   if (sock->rx_head == 0) {
     sock->rx_head = pkt;
     sock->rx_tail = pkt;
   } else {
-    struct udp_frame *temp = sock->rx_tail;
+    ((struct udp_frame *)sock->rx_tail)->next = pkt;
     sock->rx_tail = pkt;
-    pkt->next = temp;
   }
   wakeup(&sock->rx_head);
+  release(&sock->lock);
 }
 
 struct udp_frame*
@@ -127,8 +131,8 @@ udp_close(struct socket *sock)
   return 0;
 }
 
-int 
-udp_sendto(struct socket *sock, const char *buf, int len, int flags, 
+int
+udp_sendto(struct socket *sock, const void *buf, int len, int flags,
     const struct sockaddr *dest, socklen_t addrlen)
 {
   struct sockaddr_in kaddr;
@@ -168,8 +172,8 @@ udp_sendto(struct socket *sock, const char *buf, int len, int flags,
   return 0;
 }
 
-int 
-udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
+int
+udp_recvfrom(struct socket *sock, void *buf, int len, int flags,
     const struct sockaddr *src, socklen_t *addrlen)
 {
   struct udp_frame *pkt = 0;
@@ -200,25 +204,22 @@ udp_recvfrom(struct socket *sock, char *buf, int len, int flags,
   return n;
 }
 
-int 
-handle_udp_packet(struct udp_frame *udp_pkt) 
+int
+handle_udp_packet(struct udp_frame *udp_pkt)
 {
-  // printf("\tUDP packet: src_port=%d dst_port=%d len=%d csum=%d\n",
-      // udp_pkt->hdr.src_port, udp_pkt->hdr.dst_port, udp_pkt->hdr.len, udp_pkt->hdr.csum);
-
-  // validate the port number
-  if (udp_pkt->hdr.dst_port < 0 || udp_pkt->hdr.dst_port >= MAX_PORT_BINDINGS) 
+  if (udp_pkt->hdr.dst_port < 0 || udp_pkt->hdr.dst_port >= MAX_PORT_BINDINGS)
     return -1;
 
-  // validate the socket is listening for datagrams
+  acquire(&port_binds_lock);
   if (udp_port_binds[udp_pkt->hdr.dst_port] == 0) {
+    release(&port_binds_lock);
     printf("port is not bound to socket\n");
     return -1;
-  };
-
+  }
   struct socket *sock = udp_port_binds[udp_pkt->hdr.dst_port]->sock;
+  release(&port_binds_lock);
+
   if (sock->proto == IPPROTO_UDP) {
-    // printf("enqeueing packet\n");
     enqueue_udp_packet(udp_pkt, sock);
   }
   return 0;
@@ -228,7 +229,7 @@ int
 parse_udp_packet(uint8 *buf, int len, struct udp_frame *udp_pkt) 
 {
   if (len < 8) return -1;  // too short for UDP header
-
+  
   udp_pkt->hdr.src_port = ntohs(*(uint16 *)(buf));
   udp_pkt->hdr.dst_port = ntohs(*(uint16 *)(buf + 2));
   udp_pkt->hdr.len      = ntohs(*(uint16 *)(buf + 4));

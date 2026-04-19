@@ -13,6 +13,7 @@
 
 struct port_binding *udp_port_binds[MAX_PORT_BINDINGS];
 struct port_binding *tcp_port_binds[MAX_PORT_BINDINGS];
+struct spinlock port_binds_lock;
 
 struct socket_list *sock_list;
 struct socket_list *tcp_sock_list;
@@ -38,23 +39,31 @@ struct socket_ops tcp_ops = {
 };
 
 int insert_port_binding(struct port_binding *bind) {
+  acquire(&port_binds_lock);
   if (bind->sock->proto == IPPROTO_TCP)
     tcp_port_binds[bind->port] = bind;
   else if (bind->sock->proto == IPPROTO_UDP)
     udp_port_binds[bind->port] = bind;
+  release(&port_binds_lock);
   return 0;
 }
 
 int remove_port_binding(struct port_binding *bind) {
+  acquire(&port_binds_lock);
   if (bind->sock->proto == IPPROTO_TCP) {
-    if (tcp_port_binds[bind->port] == 0)
+    if (tcp_port_binds[bind->port] == 0) {
+      release(&port_binds_lock);
       return -1;
-    tcp_port_binds[bind->port] = bind;
+    }
+    tcp_port_binds[bind->port] = 0;
   } else if (bind->sock->proto == IPPROTO_UDP) {
-    if (udp_port_binds[bind->port] == 0)
+    if (udp_port_binds[bind->port] == 0) {
+      release(&port_binds_lock);
       return -1;
+    }
     udp_port_binds[bind->port] = 0;
   }
+  release(&port_binds_lock);
   return 0;
 }
 
@@ -340,6 +349,7 @@ void udp_sock_list_init() {
 }
 
 void socket_init() {
+  initlock(&port_binds_lock, "port_binds");
   sock_list_init();
   tcp_sock_list_init();
   udp_sock_list_init();

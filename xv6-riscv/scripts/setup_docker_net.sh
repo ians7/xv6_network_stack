@@ -3,7 +3,7 @@
 # so the QEMU VM attached to tap0 is on the same L2 network as the other
 # Docker containers.
 #
-# Run once per container before `make qemu-server` or `make qemu-client`.
+# Run once per container before `make qemu-hostA` or `make qemu-hostB`.
 # Requires NET_ADMIN capability (cap_add: ALL in docker-compose.yml).
 
 set -e
@@ -17,7 +17,7 @@ if [ -z "$ETH_ADDR" ] || [ -z "$GW" ]; then
     exit 1
 fi
 
-# Create tap0 (server) and tap1 (client) if they do not already exist.
+# Create tap0 (hostA) and tap1 (hostB) if they do not already exist.
 if ! ip link show tap0 &>/dev/null; then
     ip tuntap add dev tap0 mode tap
 fi

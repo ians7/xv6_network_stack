@@ -86,10 +86,11 @@ free_desc(struct virtq *q, int i)
   if (q->free[i])
     panic("free_desc 2");
 
-  q->desc->addr = 0;
-  q->desc->len = 0;
-  q->desc->flags = 0;
-  q->desc->next = 0;
+  q->desc[i].addr = 0;
+  q->desc[i].len = 0;
+  q->desc[i].flags = 0;
+  q->desc[i].next = 0;
+  q->free[i] = 1;
   wakeup(&q->free[i]);
 }
 
@@ -302,6 +303,7 @@ transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
   int hdr_desc = alloc_desc(&net.txq);
   int pkt_desc = alloc_desc(&net.txq);
   if (hdr_desc ==  -1 || pkt_desc == -1) {
+    printf("no more descriptors\n");
     release(&net.vnet_lock);
     return;
   }
@@ -312,6 +314,8 @@ transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
 
   // populate the packet buffer
   memmove(packet_buf, pkt_data, pkt_len);
+  // eth(14) + ip(20) + udp dst_port at offset 36
+  // eth(14)+ip(20)+udp_hdr(8)=42, 'A'/'B' at offset 48
 
   net.txq.desc[hdr_desc].flags |=
       VRING_DESC_F_NEXT; // This tells the device it's a chain
@@ -319,7 +323,7 @@ transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
   net.txq.desc[hdr_desc].addr = (uint64)hdr;
   net.txq.desc[hdr_desc].next = pkt_desc;
 
-  net.txq.desc[pkt_desc].len = 14 + pkt_len;
+  net.txq.desc[pkt_desc].len = pkt_len;
   net.txq.desc[pkt_desc].addr = (uint64)packet_buf;
   net.txq.desc[pkt_desc].flags = 0;
 
@@ -346,6 +350,8 @@ transmit_packet(void *pkt_data, uint16 pkt_len, uint16 protocol)
   while (net.txq.device_area->idx == prev_used_idx) {
     __sync_synchronize();
   }
+  free_desc(&net.txq, hdr_desc);
+  free_desc(&net.txq, pkt_desc);
 }
 
 void 
@@ -403,9 +409,8 @@ receive_packet()
     net.rxq.driver_area->ring[net.rxq.driver_area->idx % NUM] = id;
     __sync_synchronize();
     net.rxq.driver_area->idx++;
-
-    // notify device if needed
-    // virtio_notify(&net.rxq);
+    __sync_synchronize();
+    *R(VIRTIO_MMIO_QUEUE_NOTIFY) = QUEUE_RX;
   }
   release(&net.vnet_lock);
   return 0;

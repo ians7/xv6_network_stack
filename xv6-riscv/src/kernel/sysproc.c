@@ -249,8 +249,9 @@ uint64 sys_sendto(void) {
   if (f == 0 || f->type != FD_SOCKET)
     return -1;
 
-  return sendto(fd, (uint64 *)buf, len, flags,
-                     (struct sockaddr *)dest_addr, addrlen);
+  struct socket *sock = f->sock;
+  return sock->ops->sendto(sock, (void *)buf, len, flags,
+                           (struct sockaddr *)dest_addr, addrlen);
 }
 
 uint64 sys_recvfrom(void *arg) {
@@ -272,7 +273,8 @@ uint64 sys_recvfrom(void *arg) {
   if (f == 0 || f->type != FD_SOCKET)
     return -1;
 
-  return recvfrom(fd, (uint64 *)buf, len, flags,
-                       (struct sockaddr *)src_addr,
-                       (socklen_t *)addrlen);
+  struct socket *sock = f->sock;
+  return sock->ops->recvfrom(sock, (void *)buf, len, flags,
+                             (struct sockaddr *)src_addr,
+                             (socklen_t *)addrlen);
 }

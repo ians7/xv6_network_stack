@@ -146,6 +146,8 @@ UPROGS=\
 	$U/_xv6test\
 	$U/_net_test\
 	$U/_chat\
+	$U/_udp_conc_server\
+	$U/_udp_conc_client\
 	# $U/_launch_udp_server\
 
 
@@ -159,67 +161,67 @@ clean:
 	*/*.o */*.d */*.asm */*.sym \
 	src/*/*.o src/*/*.d src/*/*.asm src/*/*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
-	$K/kernel-server $K/kernel-server.asm $K/kernel-server.sym \
-	$K/kernel-client $K/kernel-client.asm $K/kernel-client.sym \
-	$K/sys/net_server.o $K/sys/net_client.o \
-	fs-server.img fs-client.img \
+	$K/kernel-hostA $K/kernel-hostA.asm $K/kernel-hostA.sym \
+	$K/kernel-hostB $K/kernel-hostB.asm $K/kernel-hostB.sym \
+	$K/sys/net_hostA.o $K/sys/net_hostB.o \
+	fs-hostA.img fs-hostB.img \
 	src/mkfs/mkfs .gdbinit \
         $U/usys.S \
 	$(UPROGS)
 
 ##
-## Per-IP client/server builds
+## Per-IP host builds
 ##
 
-VM_IP_SERVER ?= 0x0b000a0a
-VM_IP_CLIENT ?= 0x0a000a0a
+VM_IP_HOSTA ?= 0x0b000a0a
+VM_IP_HOSTB ?= 0x0a000a0a
 
 # Compile net.o twice with different IP addresses
-$K/sys/net_server.o: $K/sys/net.c
-	$(CC) $(CFLAGS) -DVM_IP=$(VM_IP_SERVER) -c -o $@ $<
+$K/sys/net_hostA.o: $K/sys/net.c
+	$(CC) $(CFLAGS) -DVM_IP=$(VM_IP_HOSTA) -c -o $@ $<
 
-$K/sys/net_client.o: $K/sys/net.c
-	$(CC) $(CFLAGS) -DVM_IP=$(VM_IP_CLIENT) -c -o $@ $<
+$K/sys/net_hostB.o: $K/sys/net.c
+	$(CC) $(CFLAGS) -DVM_IP=$(VM_IP_HOSTB) -c -o $@ $<
 
-SERVER_OBJS = $(patsubst $K/sys/net.o,$K/sys/net_server.o,$(OBJS))
-CLIENT_OBJS = $(patsubst $K/sys/net.o,$K/sys/net_client.o,$(OBJS))
+HOSTA_OBJS = $(patsubst $K/sys/net.o,$K/sys/net_hostA.o,$(OBJS))
+HOSTB_OBJS = $(patsubst $K/sys/net.o,$K/sys/net_hostB.o,$(OBJS))
 
-$K/kernel-server: $(SERVER_OBJS) $K/kernel.ld $U/initcode
-	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel-server $(SERVER_OBJS)
-	$(OBJDUMP) -S $K/kernel-server > $K/kernel-server.asm
-	$(OBJDUMP) -t $K/kernel-server | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel-server.sym
+$K/kernel-hostA: $(HOSTA_OBJS) $K/kernel.ld $U/initcode
+	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel-hostA $(HOSTA_OBJS)
+	$(OBJDUMP) -S $K/kernel-hostA > $K/kernel-hostA.asm
+	$(OBJDUMP) -t $K/kernel-hostA | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel-hostA.sym
 
-$K/kernel-client: $(CLIENT_OBJS) $K/kernel.ld $U/initcode
-	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel-client $(CLIENT_OBJS)
-	$(OBJDUMP) -S $K/kernel-client > $K/kernel-client.asm
-	$(OBJDUMP) -t $K/kernel-client | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel-client.sym
+$K/kernel-hostB: $(HOSTB_OBJS) $K/kernel.ld $U/initcode
+	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel-hostB $(HOSTB_OBJS)
+	$(OBJDUMP) -S $K/kernel-hostB > $K/kernel-hostB.asm
+	$(OBJDUMP) -t $K/kernel-hostB | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel-hostB.sym
 
 # Separate disk images so QEMU file locks don't conflict
-fs-server.img: src/mkfs/mkfs README $(UPROGS)
-	src/mkfs/mkfs fs-server.img README $(UPROGS)
+fs-hostA.img: src/mkfs/mkfs README $(UPROGS)
+	src/mkfs/mkfs fs-hostA.img README $(UPROGS)
 
-fs-client.img: src/mkfs/mkfs README $(UPROGS)
-	src/mkfs/mkfs fs-client.img README $(UPROGS)
+fs-hostB.img: src/mkfs/mkfs README $(UPROGS)
+	src/mkfs/mkfs fs-hostB.img README $(UPROGS)
 
-QEMUOPTS_SERVER = -machine virt -bios none -kernel $K/kernel-server -m 128M -smp $(CPUS) -nographic
-QEMUOPTS_SERVER += -global virtio-mmio.force-legacy=false
-QEMUOPTS_SERVER += -drive file=fs-server.img,if=none,format=raw,id=x0
-QEMUOPTS_SERVER += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-QEMUOPTS_SERVER += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
-QEMUOPTS_SERVER += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1,mac=52:54:00:00:00:01
+QEMUOPTS_HOSTA = -machine virt -bios none -kernel $K/kernel-hostA -m 128M -smp $(CPUS) -nographic
+QEMUOPTS_HOSTA += -global virtio-mmio.force-legacy=false
+QEMUOPTS_HOSTA += -drive file=fs-hostA.img,if=none,format=raw,id=x0
+QEMUOPTS_HOSTA += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+QEMUOPTS_HOSTA += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
+QEMUOPTS_HOSTA += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1,mac=52:54:00:00:00:01
 
-QEMUOPTS_CLIENT = -machine virt -bios none -kernel $K/kernel-client -m 128M -smp $(CPUS) -nographic
-QEMUOPTS_CLIENT += -global virtio-mmio.force-legacy=false
-QEMUOPTS_CLIENT += -drive file=fs-client.img,if=none,format=raw,id=x0
-QEMUOPTS_CLIENT += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-QEMUOPTS_CLIENT += -netdev tap,id=net0,ifname=tap1,script=no,downscript=no
-QEMUOPTS_CLIENT += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1,mac=52:54:00:00:00:02
+QEMUOPTS_HOSTB = -machine virt -bios none -kernel $K/kernel-hostB -m 128M -smp $(CPUS) -nographic
+QEMUOPTS_HOSTB += -global virtio-mmio.force-legacy=false
+QEMUOPTS_HOSTB += -drive file=fs-hostB.img,if=none,format=raw,id=x0
+QEMUOPTS_HOSTB += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+QEMUOPTS_HOSTB += -netdev tap,id=net0,ifname=tap1,script=no,downscript=no
+QEMUOPTS_HOSTB += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1,mac=52:54:00:00:00:02
 
-qemu-server: $K/kernel-server fs-server.img
-	$(QEMU) $(QEMUOPTS_SERVER)
+qemu-hostA: $K/kernel-hostA fs-hostA.img
+	$(QEMU) $(QEMUOPTS_HOSTA)
 
-qemu-client: $K/kernel-client fs-client.img
-	$(QEMU) $(QEMUOPTS_CLIENT)
+qemu-hostB: $K/kernel-hostB fs-hostB.img
+	$(QEMU) $(QEMUOPTS_HOSTB)
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
