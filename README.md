@@ -79,6 +79,8 @@ trying it out with the following command,
 $ chat <other-ip>
 ```
 
+To exit qemu, **\<C-x\>**. To exit the container, simply run `exit` on the command line.
+
 ### Networking Setup
 
 * Docker for an isolated network, simplifying testing
